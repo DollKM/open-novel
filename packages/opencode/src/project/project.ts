@@ -127,6 +127,7 @@ export interface Interface {
   readonly sandboxes: (id: ProjectV2.ID) => Effect.Effect<string[]>
   readonly addSandbox: (id: ProjectV2.ID, directory: string) => Effect.Effect<void>
   readonly removeSandbox: (id: ProjectV2.ID, directory: string) => Effect.Effect<void>
+  readonly delete: (id: ProjectV2.ID) => Effect.Effect<void, NotFoundError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Project") {}
@@ -488,6 +489,16 @@ export const layer = Layer.effect(
       yield* emitUpdated(fromRow(result))
     })
 
+    const delete_ = Effect.fn("Project.delete")(function* (id: ProjectV2.ID) {
+      const result = yield* db
+        .delete(ProjectTable)
+        .where(eq(ProjectTable.id, id))
+        .returning()
+        .get()
+        .pipe(Effect.orDie)
+      if (!result) return yield* new NotFoundError({ projectID: id })
+    })
+
     return Service.of({
       init,
       fromDirectory,
@@ -500,6 +511,7 @@ export const layer = Layer.effect(
       sandboxes,
       addSandbox,
       removeSandbox,
+      delete: delete_,
     })
   }),
 )

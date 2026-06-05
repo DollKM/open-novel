@@ -1,6 +1,7 @@
 import * as InstanceState from "@/effect/instance-state"
 import { Project } from "@/project/project"
 import { ProjectV2 } from "@opencode-ai/core/project"
+import { AbsolutePath } from "@opencode-ai/core/schema"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
@@ -53,11 +54,32 @@ export const projectHandlers = HttpApiBuilder.group(InstanceHttpApi, "project", 
       project.directories({ projectID: ctx.params.projectID }),
     )
 
+    const remove = Effect.fn("ProjectHttpApi.remove")(function* () {
+      const ctx = yield* InstanceState.context
+      const resolved = yield* project.resolve(AbsolutePath.make(ctx.directory))
+      if (resolved.id === ProjectV2.ID.global)
+        return yield* Effect.fail(
+          new ProjectNotFoundError({ projectID: resolved.id, message: "Cannot delete the global project" }),
+        )
+      return yield* svc.delete(resolved.id).pipe(
+        Effect.catchTag("Project.NotFoundError", (error) =>
+          Effect.fail(
+            new ProjectNotFoundError({
+              projectID: error.projectID,
+              message: `Project not found: ${error.projectID}`,
+            }),
+          ),
+        ),
+        Effect.as(true),
+      )
+    })
+
     return handlers
       .handle("list", list)
       .handle("current", current)
       .handle("initGit", initGit)
       .handle("update", update)
       .handle("directories", directories)
+      .handle("remove", remove)
   }),
 )

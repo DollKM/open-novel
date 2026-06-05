@@ -73,6 +73,18 @@ export const ProjectApi = HttpApi.make("project")
             description: "List known local absolute directories for a project.",
           }),
         ),
+        HttpApiEndpoint.delete("remove", root, {
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Boolean, "Successfully deleted project"),
+          error: ProjectNotFoundError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "project.delete",
+            summary: "Delete project",
+            description:
+              "Delete a project identified by the workspace routing directory and permanently remove all associated data from the database.",
+          }),
+        ),
       )
       .annotateMerge(
         OpenApi.annotations({
