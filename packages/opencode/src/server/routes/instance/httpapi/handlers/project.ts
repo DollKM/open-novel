@@ -6,6 +6,7 @@ import { ProjectV2 } from "@opencode-ai/core/project"
 import { AbsolutePath } from "@opencode-ai/core/schema"
 import * as Log from "@opencode-ai/core/util/log"
 import { Cause, Effect } from "effect"
+import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import { ProjectNotFoundError } from "../errors"
@@ -60,6 +61,26 @@ export const projectHandlers = HttpApiBuilder.group(InstanceHttpApi, "project", 
     )
 
     const remove = Effect.fn("ProjectHttpApi.remove")(function* () {
+      // If the directory query param is a known project ID, delete directly
+      const request = yield* HttpServerRequest.HttpServerRequest
+      const rawID = new URL(request.url, "http://localhost").searchParams.get("directory")
+      if (rawID) {
+        const existing = yield* svc.get(ProjectV2.ID.make(rawID))
+        if (existing) {
+          return yield* svc.delete(existing.id).pipe(
+            Effect.catchTag("Project.NotFoundError", (error) =>
+              Effect.fail(
+                new ProjectNotFoundError({
+                  projectID: error.projectID,
+                  message: `Project not found: ${error.projectID}`,
+                }),
+              ),
+            ),
+            Effect.as(true),
+          )
+        }
+      }
+      // Fallback: resolve project from instance context directory
       const ctx = yield* InstanceState.context
       const resolved = yield* project.resolve(AbsolutePath.make(ctx.directory))
       if (resolved.id === ProjectV2.ID.global)
