@@ -63,4 +63,32 @@ describe("global HttpApi", () => {
       expect(yield* response.json).toEqual({ success: false, error: "Invalid request body" })
     }),
   )
+
+  it.live("upgrades from source when source_path is provided", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.post(GlobalPaths.upgrade).pipe(
+        HttpClientRequest.setBody(
+          HttpBody.jsonUnsafe({ source_path: "F:\\Project\\AI\\opencode" }),
+        ),
+        HttpClient.execute,
+      )
+
+      expect(response.status).toBe(200)
+      expect(yield* response.json).toEqual({ success: true, version: "9.9.9" })
+    }),
+  )
+
+  it.live("upgrades from source with target version", () =>
+    Effect.gen(function* () {
+      const response = yield* HttpClientRequest.post(GlobalPaths.upgrade).pipe(
+        HttpClientRequest.setBody(
+          HttpBody.jsonUnsafe({ source_path: "/home/user/opencode", target: "0.2.0" }),
+        ),
+        HttpClient.execute,
+      )
+
+      expect(response.status).toBe(200)
+      expect(yield* response.json).toEqual({ success: true, version: "0.2.0" })
+    }),
+  )
 })

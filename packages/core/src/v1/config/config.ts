@@ -62,6 +62,9 @@ export const Info = Schema.Struct({
     description:
       "Automatically update to the latest version. Set to true to auto-update, false to disable, or 'notify' to show update notifications",
   }),
+  source_path: Schema.optional(Schema.String).annotate({
+    description: "Local source directory for building opencode from source",
+  }),
   disabled_providers: Schema.optional(Schema.mutable(Schema.Array(Schema.String))).annotate({
     description: "Disable providers that are loaded automatically",
   }),

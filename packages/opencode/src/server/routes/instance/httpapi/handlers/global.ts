@@ -7,6 +7,10 @@ import { disposeAllInstancesAndEmitGlobalDisposed } from "@/server/global-lifecy
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import * as Log from "@opencode-ai/core/util/log"
 import { Effect, Queue, Schema } from "effect"
+import { spawn } from "child_process"
+import fs from "fs"
+import os from "os"
+import path from "path"
 import * as Stream from "effect/Stream"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
@@ -96,15 +100,21 @@ export const globalHandlers = HttpApiBuilder.group(RootHttpApi, "global", (handl
     })
 
     const upgrade = Effect.fn("GlobalHttpApi.upgrade")(function* (ctx: { payload: typeof GlobalUpgradeInput.Type }) {
-      const method = yield* installation.method()
-      if (method === "unknown") {
+      const useLocal = !!ctx.payload.source_path
+      const method = useLocal ? "local" as Installation.Method : yield* installation.method()
+      if (!useLocal && method === "unknown") {
         return {
           status: 400,
           body: { success: false as const, error: "Unknown installation method" },
         }
       }
-      const target = ctx.payload.target || (yield* installation.latest(method))
-      const result = yield* installation.upgrade(method, target).pipe(
+      const target = ctx.payload.target || (yield* installation.latest(method === "local" ? undefined : method))
+      const upgradeOpts: Installation.UpgradeOptions = {}
+      if (useLocal) {
+        upgradeOpts.sourcePath = ctx.payload.source_path
+        upgradeOpts.configService = config
+      }
+      const result = yield* installation.upgrade(method, target, upgradeOpts).pipe(
         Effect.as({ status: 200, body: { success: true as const, version: target } }),
         Effect.catch((err) =>
           Effect.succeed({
@@ -143,6 +153,51 @@ export const globalHandlers = HttpApiBuilder.group(RootHttpApi, "global", (handl
         return HttpServerResponse.jsonUnsafe({ success: false, error: "Invalid request body" }, { status: 400 })
       }
       const result = yield* upgrade({ payload: payload.payload })
+
+      // Schedule restart after successful local upgrade
+      if (result.body.success && payload.payload.source_path) {
+        setTimeout(() => {
+          try {
+            const execPath = process.execPath
+            const oldPath = execPath + ".old"
+            const pid = process.pid
+
+            if (process.platform === "win32") {
+              const script = `@echo off
+:wait
+tasklist /fi "PID eq ${pid}" 2>nul | findstr "${pid}" >nul
+if not errorlevel 1 (
+  timeout /t 1 /nobreak >nul
+  goto wait
+)
+if exist "${oldPath}" del "${oldPath}"
+start "" "${execPath}"
+`
+              const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-restart-"))
+              const scriptPath = path.join(tmpDir, "restart.bat")
+              fs.writeFileSync(scriptPath, script)
+              const cp = spawn(scriptPath, [], { detached: true, stdio: "ignore" })
+              cp.unref()
+            } else {
+              const script = `#!/bin/sh
+while kill -0 ${pid} 2>/dev/null; do sleep 1; done
+rm -f "${oldPath}"
+exec "${execPath}"
+`
+              const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-restart-"))
+              const scriptPath = path.join(tmpDir, "restart.sh")
+              fs.writeFileSync(scriptPath, script, { mode: 0o755 })
+              const cp = spawn("/bin/sh", [scriptPath], { detached: true, stdio: "ignore" })
+              cp.unref()
+            }
+
+            process.exit(0)
+          } catch {
+            // Ignore errors during restart
+          }
+        }, 500)
+      }
+
       return HttpServerResponse.jsonUnsafe(result.body, { status: result.status })
     })
 
