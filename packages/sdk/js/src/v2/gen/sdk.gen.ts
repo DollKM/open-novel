@@ -135,6 +135,8 @@ import type {
   ProjectInitGitResponses,
   ProjectListErrors,
   ProjectListResponses,
+  ProjectRemoveErrors,
+  ProjectRemoveResponses,
   ProjectUpdateErrors,
   ProjectUpdateResponses,
   Prompt,
