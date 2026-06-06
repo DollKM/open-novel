@@ -2554,6 +2554,36 @@ export class Project extends HeyApiClient {
   }
 
   /**
+   * Delete project
+   *
+   * Delete a project identified by the workspace routing directory and permanently remove all associated data from the database.
+   */
+  public remove<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<ProjectRemoveResponses, ProjectRemoveErrors, ThrowOnError>({
+      url: "/project",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
    * Update project
    *
    * Update project properties such as name, icon, and commands.
