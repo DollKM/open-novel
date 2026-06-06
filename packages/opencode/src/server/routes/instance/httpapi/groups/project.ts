@@ -55,6 +55,7 @@ export const ProjectApi = HttpApi.make("project")
             Schema.Struct({
               local: Schema.Boolean,
               behind: Schema.Number,
+              errorMsg: Schema.optional(Schema.String),
             }),
             "Local update check result",
           ),

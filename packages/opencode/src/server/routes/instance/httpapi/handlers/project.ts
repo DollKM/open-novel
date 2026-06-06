@@ -4,11 +4,14 @@ import { Installation } from "@/installation"
 import { Project } from "@/project/project"
 import { ProjectV2 } from "@opencode-ai/core/project"
 import { AbsolutePath } from "@opencode-ai/core/schema"
-import { Effect } from "effect"
+import * as Log from "@opencode-ai/core/util/log"
+import { Cause, Effect } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import { ProjectNotFoundError } from "../errors"
 import { markInstanceForReload } from "../lifecycle"
+
+const log = Log.create({ service: "server" })
 
 export const projectHandlers = HttpApiBuilder.group(InstanceHttpApi, "project", (handlers) =>
   Effect.gen(function* () {
@@ -78,23 +81,38 @@ export const projectHandlers = HttpApiBuilder.group(InstanceHttpApi, "project", 
 
     const updateCheck = Effect.fn("ProjectHttpApi.updateCheck")(function* () {
       if (!Installation.isLocal()) {
-        return { local: false, behind: 0 }
+        return { local: false, behind: 0, errorMsg: undefined }
       }
 
       const git = yield* Git.Service
       const ctx = yield* InstanceState.context
 
-      const result = yield* git.run(["rev-list", "--count", "dev..upstream/dev"], { cwd: ctx.directory })
+      const r = yield* git.run(["rev-list", "--count", "dev..upstream/dev"], { cwd: ctx.directory })
 
-      const behind = result.exitCode === 0 ? Number.parseInt(result.text().trim()) || 0 : 0
-      return { local: true, behind }
+      if (r.exitCode !== 0) {
+        const msg = r.stderr.toString("utf8").trim() || "git command failed"
+        return { local: true, behind: 0, errorMsg: msg }
+      }
+
+      const behind = Number.parseInt(r.text().trim()) || 0
+      return { local: true, behind, errorMsg: undefined }
     })
+
+    // Wrap with catch-all so ANY unexpected defect becomes a graceful response
+    // instead of a 500 UnknownError (see middleware/error.ts).
+    const updateCheckSafe: typeof updateCheck = ((...args) =>
+      updateCheck(...args).pipe(
+        Effect.catchCause((cause) => {
+          log.error("updateCheck failed", { cause: Cause.pretty(cause) })
+          return Effect.succeed({ local: true, behind: 0, errorMsg: Cause.pretty(cause) })
+        }),
+      )) as typeof updateCheck
 
     return handlers
       .handle("list", list)
       .handle("current", current)
       .handle("initGit", initGit)
-      .handle("updateCheck", updateCheck)
+      .handle("updateCheck", updateCheckSafe)
       .handle("update", update)
       .handle("directories", directories)
       .handle("remove", remove)
