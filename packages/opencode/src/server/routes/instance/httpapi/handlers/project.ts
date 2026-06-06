@@ -1,4 +1,6 @@
+import { Git } from "@/git"
 import * as InstanceState from "@/effect/instance-state"
+import { Installation } from "@/installation"
 import { Project } from "@/project/project"
 import { ProjectV2 } from "@opencode-ai/core/project"
 import { AbsolutePath } from "@opencode-ai/core/schema"
@@ -74,10 +76,25 @@ export const projectHandlers = HttpApiBuilder.group(InstanceHttpApi, "project", 
       )
     })
 
+    const updateCheck = Effect.fn("ProjectHttpApi.updateCheck")(function* () {
+      if (!Installation.isLocal()) {
+        return { local: false, behind: 0 }
+      }
+
+      const git = yield* Git.Service
+      const ctx = yield* InstanceState.context
+
+      const result = yield* git.run(["rev-list", "--count", "dev..upstream/dev"], { cwd: ctx.directory })
+
+      const behind = result.exitCode === 0 ? Number.parseInt(result.text().trim()) || 0 : 0
+      return { local: true, behind }
+    })
+
     return handlers
       .handle("list", list)
       .handle("current", current)
       .handle("initGit", initGit)
+      .handle("updateCheck", updateCheck)
       .handle("update", update)
       .handle("directories", directories)
       .handle("remove", remove)
