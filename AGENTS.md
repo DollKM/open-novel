@@ -1,6 +1,7 @@
 - To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
 - The default branch in this repo is `dev`.
 - Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
+- When pushing to remote, always use `--no-verify` to skip pre-push hooks: `git push --no-verify`.
 
 ## Commits and PR Titles
 
