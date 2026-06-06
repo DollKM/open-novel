@@ -130,6 +130,9 @@ export const Info = Schema.Struct({
   enterprise: Schema.optional(
     Schema.Struct({ url: Schema.optional(Schema.String).annotate({ description: "Enterprise URL" }) }),
   ),
+  client_data: Schema.optional(Schema.String).annotate({
+    description: "Frontend-persisted JSON string for storing UI state, preferences, and other client-side data via the server",
+  }),
   tool_output: Schema.optional(
     Schema.Struct({
       max_lines: Schema.optional(PositiveInt).annotate({
