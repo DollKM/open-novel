@@ -9,6 +9,7 @@ import {
   HttpServerResponse,
 } from "effect/unstable/http"
 import * as Socket from "effect/unstable/socket/Socket"
+import { AppProcess } from "@opencode-ai/core/process"
 import { FSUtil } from "@opencode-ai/core/fs-util"
 import { Account } from "@/account/account"
 import { Agent } from "@/agent/agent"
@@ -18,6 +19,7 @@ import { Command } from "@/command"
 import * as Observability from "@opencode-ai/core/effect/observability"
 import { Ripgrep } from "@opencode-ai/core/filesystem/ripgrep"
 import { Format } from "@/format"
+import { Git } from "@/git"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { LSP } from "@/lsp/lsp"
 import { MCP } from "@/mcp"
@@ -249,6 +251,7 @@ export function createRoutes(
       Skill.defaultLayer,
       Todo.defaultLayer,
       ToolRegistry.defaultLayer,
+      Git.layer.pipe(Layer.provide(AppProcess.defaultLayer)),
       Vcs.defaultLayer,
       Workspace.defaultLayer,
       Worktree.appLayer,
