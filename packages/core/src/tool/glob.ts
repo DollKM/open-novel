@@ -4,7 +4,7 @@ import { Tool, ToolFailure, toolText } from "@opencode-ai/llm"
 import { Cause, Effect, Layer, Schema } from "effect"
 import { FileSystem } from "../filesystem"
 import { LocationSearch } from "../location-search"
-import { ToolRegistry } from "../tool-registry"
+import { ToolRegistry } from "./registry"
 
 export const name = "glob"
 
@@ -45,8 +45,8 @@ const definition = Tool.make({
 })
 
 /**
- * Location-scoped glob leaf. FileSystem selects a canonical root for
- * permission metadata; LocationSearch owns containment and traversal.
+ * Location-scoped glob leaf. FileSystem supplies canonical permission metadata;
+ * LocationSearch resolves the current root and owns containment and traversal.
  *
  * TODO: Revisit root-specific search permission resources if named-reference policy needs independent allow/deny rules.
  */
@@ -73,7 +73,7 @@ export const layer = Layer.effectDiscard(
                 limit: parameters.limit,
               },
             })
-            return yield* search.files(parameters, root)
+            return yield* search.files(parameters)
           }).pipe(
             Effect.catchCause((cause) =>
               Effect.fail(

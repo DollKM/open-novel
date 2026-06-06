@@ -5,7 +5,7 @@ import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } fr
 import { PermissionV2 } from "@opencode-ai/core/permission"
 import { SessionV2 } from "@opencode-ai/core/session"
 import { ToolOutputStore } from "@opencode-ai/core/tool-output-store"
-import { ToolRegistry } from "@opencode-ai/core/tool-registry"
+import { ToolRegistry } from "@opencode-ai/core/tool/registry"
 import { WebFetchTool } from "@opencode-ai/core/tool/webfetch"
 import { testEffect } from "./lib/effect"
 
@@ -44,11 +44,11 @@ const resources = Layer.succeed(
     limits: () => Effect.die("unused"),
     write: () => Effect.die("unused"),
     truncate: (input) => Effect.sync(() => truncations.push(input)).pipe(Effect.andThen(truncate(input))),
-    read: () => Effect.die("unused"),
+    bound: (input) => Effect.succeed({ output: input.output, outputPaths: [] }),
     cleanup: () => Effect.die("unused"),
   }),
 )
-const registry = ToolRegistry.layer.pipe(Layer.provide(permission))
+const registry = ToolRegistry.defaultLayer.pipe(Layer.provide(permission))
 const webfetch = WebFetchTool.layer.pipe(Layer.provide(registry), Layer.provide(http), Layer.provide(resources))
 const it = testEffect(Layer.mergeAll(registry, permission, http, resources, webfetch))
 const fetchWebfetch = WebFetchTool.layer.pipe(
@@ -187,26 +187,25 @@ describe("WebFetchTool contribution", () => {
     }),
   )
 
-  it.effect("exposes managed overflow through an opaque resource URI", () =>
+  it.effect("exposes managed overflow through a path", () =>
     Effect.gen(function* () {
       reset()
       truncate = (input) =>
         Effect.succeed({
-          content: "HEAD\n\n... output truncated; full content available as tool-output://opaque ...\n\nTAIL",
+          content: "HEAD\n\n... output truncated; full content saved to /tmp/tool-output/tool_opaque ...\n\nTAIL",
           truncated: true,
-          resource: new ToolOutputStore.Resource({
-            uri: "tool-output://opaque",
-            mime: input.mime ?? "text/plain",
-            size: input.content.length,
-          }),
+          outputPath: "/tmp/tool-output/tool_opaque",
         })
       const registry = yield* ToolRegistry.Service
       const settled = yield* registry.settle(call({ url: "https://1.1.1.1", format: "html" }, "call-overflow"))
 
-      expect(settled.result).toMatchObject({ type: "text", value: expect.stringContaining("tool-output://opaque") })
+      expect(settled.result).toMatchObject({
+        type: "text",
+        value: expect.stringContaining("/tmp/tool-output/tool_opaque"),
+      })
       expect(settled.output?.structured).toMatchObject({
         truncated: true,
-        resource: { uri: "tool-output://opaque", mime: "text/html" },
+        outputPath: "/tmp/tool-output/tool_opaque",
       })
       expect(truncations).toEqual([{ sessionID, toolCallID: "call-overflow", content: "hello", mime: "text/html" }])
     }),

@@ -12,7 +12,7 @@ import { Cause, Effect, Layer, Schema } from "effect"
 import { FileMutation } from "../file-mutation"
 import { FSUtil } from "../fs-util"
 import { LocationMutation } from "../location-mutation"
-import { ToolRegistry } from "../tool-registry"
+import { ToolRegistry } from "./registry"
 
 export const name = "edit"
 
@@ -130,15 +130,14 @@ export const layer = Layer.effectDiscard(
               })
             }
 
-            const plan = yield* unableToEdit(mutation.resolve({ path: parameters.path, kind: "file" }))
-            const external = plan.target.externalDirectory
+            const target = yield* unableToEdit(mutation.resolve({ path: parameters.path, kind: "file" }))
+            const external = target.externalDirectory
             if (external) {
               yield* unableToEdit(assertPermission(LocationMutation.externalDirectoryPermission(external)))
             }
 
-            yield* unableToEdit(assertPermission({ action: "edit", resources: [plan.target.resource], save: ["*"] }))
-            const readable = yield* unableToEdit(mutation.revalidate(plan))
-            const source = decodeUtf8(yield* unableToEdit(fs.readFile(readable.canonical)))
+            yield* unableToEdit(assertPermission({ action: "edit", resources: [target.resource], save: ["*"] }))
+            const source = decodeUtf8(yield* unableToEdit(fs.readFile(target.canonical)))
             const ending = detectLineEnding(source.text)
             const oldString = convertToLineEnding(parameters.oldString, ending)
             const newString = convertToLineEnding(parameters.newString, ending)
@@ -163,7 +162,7 @@ export const layer = Layer.effectDiscard(
             const next = splitBom(replaced)
             const result = yield* unableToEdit(
               files.writeIfUnchanged({
-                plan,
+                target,
                 expected: source.content,
                 content: joinBom(next.text, source.bom || next.bom),
               }),

@@ -11,7 +11,7 @@ import { Tool, ToolFailure, toolText } from "@opencode-ai/llm"
 import { Cause, Effect, Layer, Schema } from "effect"
 import { FileMutation } from "../file-mutation"
 import { LocationMutation } from "../location-mutation"
-import { ToolRegistry } from "../tool-registry"
+import { ToolRegistry } from "./registry"
 
 export const name = "write"
 
@@ -60,11 +60,11 @@ export const layer = Layer.effectDiscard(
         tool: definition,
         execute: ({ parameters, assertPermission }) =>
           Effect.gen(function* () {
-            const plan = yield* mutation.resolve({ path: parameters.path, kind: "file" })
-            const external = plan.target.externalDirectory
+            const target = yield* mutation.resolve({ path: parameters.path, kind: "file" })
+            const external = target.externalDirectory
             if (external) yield* assertPermission(LocationMutation.externalDirectoryPermission(external))
-            yield* assertPermission({ action: "edit", resources: [plan.target.resource], save: ["*"] })
-            return yield* files.writeTextPreservingBom({ plan, content: parameters.content })
+            yield* assertPermission({ action: "edit", resources: [target.resource], save: ["*"] })
+            return yield* files.writeTextPreservingBom({ target, content: parameters.content })
           }).pipe(
             Effect.catchCause((cause) =>
               Effect.fail(

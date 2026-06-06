@@ -14,7 +14,7 @@ import { Ripgrep } from "@opencode-ai/core/ripgrep"
 import { AbsolutePath, RelativePath } from "@opencode-ai/core/schema"
 import { SessionV2 } from "@opencode-ai/core/session"
 import { GrepTool } from "@opencode-ai/core/tool/grep"
-import { ToolRegistry } from "@opencode-ai/core/tool-registry"
+import { ToolRegistry } from "@opencode-ai/core/tool/registry"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 import { it as runtimeIt } from "./lib/effect"
@@ -22,7 +22,6 @@ import { testEffect } from "./lib/effect"
 
 const assertions: PermissionV2.AssertInput[] = []
 const searches: LocationSearch.GrepInput[] = []
-const roots: FileSystem.RootTarget[] = []
 let allow = true
 let result = new LocationSearch.GrepResult({ items: [], truncated: false, partial: false })
 let searchFailure: Ripgrep.InvalidPatternError | undefined
@@ -32,24 +31,18 @@ const filesystem = Layer.succeed(
   FileSystem.Service.of({
     read: () => Effect.die("unused"),
     resolveReadPath: () => Effect.die("unused"),
-    resolveRead: () => Effect.die("unused"),
-    readResolved: () => Effect.die("unused"),
-    readTextPageResolved: () => Effect.die("unused"),
+    readTool: () => Effect.die("unused"),
     list: () => Effect.die("unused"),
     resolveRoot: (input = {}) =>
       Effect.succeed(
         new FileSystem.RootTarget({
-          absolute: `/project/${input.path ?? "."}`,
           real: `/project/${input.path ?? "."}`,
-          directory: "/project",
           root: "/project",
           resource: input.reference === undefined ? (input.path ?? ".") : `${input.reference}:${input.path ?? "."}`,
           reference: input.reference,
           type: "directory",
-          dev: 1,
         }),
       ),
-    revalidateRoot: Effect.succeed,
     resolveList: () => Effect.die("unused"),
     listResolved: () => Effect.die("unused"),
     listPage: () => Effect.die("unused"),
@@ -63,10 +56,9 @@ const search = Layer.succeed(
   LocationSearch.Service,
   LocationSearch.Service.of({
     files: () => Effect.die("unused"),
-    grep: (input, root) =>
+    grep: (input) =>
       Effect.sync(() => {
         searches.push(input)
-        if (root) roots.push(root)
         if (searchFailure) throw searchFailure
         return result
       }),
@@ -86,7 +78,7 @@ const permission = Layer.succeed(
     list: () => Effect.die("unused"),
   }),
 )
-const registry = ToolRegistry.layer.pipe(Layer.provide(permission))
+const registry = ToolRegistry.defaultLayer.pipe(Layer.provide(permission))
 const grep = GrepTool.layer.pipe(
   Layer.provide(registry),
   Layer.provide(filesystem),
@@ -109,7 +101,6 @@ const settle = (input: Record<string, unknown>) =>
 const reset = () => {
   assertions.length = 0
   searches.length = 0
-  roots.length = 0
   allow = true
   searchFailure = undefined
   result = new LocationSearch.GrepResult({ items: [], truncated: false, partial: false })
@@ -140,7 +131,7 @@ function provideLive(directory: string, projectReferences = references({})) {
     Layer.provide(FSUtil.defaultLayer),
     Layer.provide(dependencies),
   )
-  const registry = ToolRegistry.layer.pipe(Layer.provide(permission))
+  const registry = ToolRegistry.defaultLayer.pipe(Layer.provide(permission))
   const grep = GrepTool.layer.pipe(
     Layer.provide(registry),
     Layer.provide(filesystem),
@@ -174,7 +165,6 @@ describe("GrepTool", () => {
         },
       ])
       expect(searches).toEqual([{ pattern: "needle", path: RelativePath.make("src"), include: "*.ts", limit: 2 }])
-      expect(roots).toMatchObject([{ resource: "src" }])
     }),
   )
 

@@ -44,6 +44,8 @@ import type {
   ExperimentalProjectCopyRemoveResponses,
   ExperimentalResourceListErrors,
   ExperimentalResourceListResponses,
+  ExperimentalSessionBackgroundErrors,
+  ExperimentalSessionBackgroundResponses,
   ExperimentalSessionListErrors,
   ExperimentalSessionListResponses,
   ExperimentalWorkspaceAdapterListErrors,
@@ -735,6 +737,42 @@ export class Session extends HeyApiClient {
       ...params,
     })
   }
+
+  /**
+   * Background subagents
+   *
+   * Detach any synchronous subagents currently blocking the session and continue them in the background.
+   */
+  public background<ThrowOnError extends boolean = false>(
+    parameters: {
+      sessionID: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "sessionID" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).post<
+      ExperimentalSessionBackgroundResponses,
+      ExperimentalSessionBackgroundErrors,
+      ThrowOnError
+    >({
+      url: "/experimental/session/{sessionID}/background",
+      ...options,
+      ...params,
+    })
+  }
 }
 
 export class Resource extends HeyApiClient {
@@ -782,9 +820,9 @@ export class ProjectCopy extends HeyApiClient {
   public remove<ThrowOnError extends boolean = false>(
     parameters: {
       projectID: string
-      query_directory?: string
       workspace?: string
-      body_directory?: string
+      directory?: string
+      force?: boolean
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -794,17 +832,9 @@ export class ProjectCopy extends HeyApiClient {
         {
           args: [
             { in: "path", key: "projectID" },
-            {
-              in: "query",
-              key: "query_directory",
-              map: "directory",
-            },
             { in: "query", key: "workspace" },
-            {
-              in: "body",
-              key: "body_directory",
-              map: "directory",
-            },
+            { in: "body", key: "directory" },
+            { in: "body", key: "force" },
           ],
         },
       ],

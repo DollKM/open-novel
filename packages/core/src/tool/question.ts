@@ -1,9 +1,9 @@
 export * as QuestionTool from "./question"
 
-import { Tool, toolText } from "@opencode-ai/llm"
+import { Tool, ToolFailure, toolText } from "@opencode-ai/llm"
 import { Effect, Layer, Schema } from "effect"
 import { QuestionV2 } from "../question"
-import { ToolRegistry } from "../tool-registry"
+import { ToolRegistry } from "./registry"
 
 export const name = "question"
 
@@ -57,6 +57,11 @@ export const layer = Layer.effectDiscard(
     yield* registry.contribute((editor) =>
       editor.set(name, {
         tool: definition,
+        permission: { action: "question", resource: "*" },
+        authorize: ({ assertPermission }) =>
+          assertPermission({ action: "question", resources: ["*"] }).pipe(
+            Effect.mapError(() => new ToolFailure({ message: "Permission denied: question" })),
+          ),
         execute: ({ parameters, sessionID, source }) =>
           question
             .ask({

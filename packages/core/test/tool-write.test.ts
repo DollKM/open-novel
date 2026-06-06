@@ -10,7 +10,7 @@ import { LocationMutation } from "@opencode-ai/core/location-mutation"
 import { PermissionV2 } from "@opencode-ai/core/permission"
 import { AbsolutePath } from "@opencode-ai/core/schema"
 import { SessionV2 } from "@opencode-ai/core/session"
-import { ToolRegistry } from "@opencode-ai/core/tool-registry"
+import { ToolRegistry } from "@opencode-ai/core/tool/registry"
 import { WriteTool } from "@opencode-ai/core/tool/write"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
@@ -20,7 +20,6 @@ const sessionID = SessionV2.ID.make("ses_write_tool_test")
 const assertions: PermissionV2.AssertInput[] = []
 const writes: string[] = []
 let denyAction: string | undefined
-let afterAssertion = (_input: PermissionV2.AssertInput): Effect.Effect<void> => Effect.void
 
 const permission = Layer.succeed(
   PermissionV2.Service,
@@ -28,9 +27,7 @@ const permission = Layer.succeed(
     assert: (input) =>
       Effect.sync(() => assertions.push(input)).pipe(
         Effect.andThen(
-          input.action === denyAction
-            ? Effect.fail(new PermissionV2.DeniedError({ rules: [] }))
-            : afterAssertion(input),
+          input.action === denyAction ? Effect.fail(new PermissionV2.DeniedError({ rules: [] })) : Effect.void,
         ),
       ),
     ask: () => Effect.die("unused"),
@@ -45,7 +42,6 @@ const reset = () => {
   assertions.length = 0
   writes.length = 0
   denyAction = undefined
-  afterAssertion = () => Effect.void
 }
 
 const filesystem = Layer.effect(
@@ -65,13 +61,13 @@ const withTool = <A, E, R>(directory: string, body: (registry: ToolRegistry.Inte
     Location.Service,
     Location.Service.of(location({ directory: AbsolutePath.make(directory) })),
   )
-  const planning = LocationMutation.layer.pipe(Layer.provide(filesystem), Layer.provide(activeLocation))
-  const commits = FileMutation.layer.pipe(Layer.provide(filesystem), Layer.provide(planning))
-  const registry = ToolRegistry.layer.pipe(Layer.provide(permission))
-  const write = WriteTool.layer.pipe(Layer.provide(registry), Layer.provide(planning), Layer.provide(commits))
+  const resolution = LocationMutation.layer.pipe(Layer.provide(filesystem), Layer.provide(activeLocation))
+  const mutation = FileMutation.layer.pipe(Layer.provide(filesystem))
+  const registry = ToolRegistry.defaultLayer.pipe(Layer.provide(permission))
+  const write = WriteTool.layer.pipe(Layer.provide(registry), Layer.provide(resolution), Layer.provide(mutation))
   return Effect.gen(function* () {
     return yield* body(yield* ToolRegistry.Service)
-  }).pipe(Effect.provide(Layer.mergeAll(registry, planning, commits, write)))
+  }).pipe(Effect.provide(Layer.mergeAll(registry, resolution, mutation, write)))
 }
 
 const call = (input: typeof WriteTool.Parameters.Type, id = "call-write") => ({
@@ -258,51 +254,6 @@ describe("WriteTool", () => {
         ),
     ),
   )
-
-  if (process.platform !== "win32") {
-    it.live("delegates post-approval revalidation to FileMutation before writing", () =>
-      Effect.acquireUseRelease(
-        Effect.promise(() => Promise.all([tmpdir(), tmpdir()])),
-        ([active, outside]) => {
-          reset()
-          const parent = path.join(active.path, "parent")
-          afterAssertion = (input) =>
-            input.action === "edit"
-              ? Effect.promise(async () => {
-                  await fs.rmdir(parent)
-                  await fs.symlink(outside.path, parent)
-                })
-              : Effect.void
-          return Effect.promise(() => fs.mkdir(parent)).pipe(
-            Effect.andThen(
-              withTool(active.path, (registry) =>
-                registry.execute(call({ path: "parent/escape.txt", content: "blocked" })),
-              ),
-            ),
-            Effect.andThen((result) =>
-              Effect.gen(function* () {
-                expect(result).toEqual({ type: "error", value: "Unable to write parent/escape.txt" })
-                expect(assertions.map((input) => input.action)).toEqual(["edit"])
-                expect(writes).toEqual([])
-                expect(
-                  yield* Effect.promise(() =>
-                    fs.stat(path.join(outside.path, "escape.txt")).then(
-                      () => true,
-                      () => false,
-                    ),
-                  ),
-                ).toBe(false)
-              }),
-            ),
-          )
-        },
-        ([active, outside]) =>
-          Effect.promise(() =>
-            Promise.all([active[Symbol.asyncDispose](), outside[Symbol.asyncDispose]()]).then(() => undefined),
-          ),
-      ),
-    )
-  }
 })
 
 test("keeps the locked write schema, semantics docstring, and deferred UX TODOs visible", async () => {
