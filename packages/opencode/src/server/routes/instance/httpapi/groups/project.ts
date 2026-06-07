@@ -49,24 +49,6 @@ export const ProjectApi = HttpApi.make("project")
             description: "Create a git repository for the current project and return the refreshed project info.",
           }),
         ),
-        HttpApiEndpoint.get("updateCheck", `${root}/update-check`, {
-          query: WorkspaceRoutingQuery,
-          success: described(
-            Schema.Struct({
-              local: Schema.Boolean,
-              behind: Schema.Number,
-              errorMsg: Schema.optional(Schema.String),
-            }),
-            "Local update check result",
-          ),
-        }).annotateMerge(
-          OpenApi.annotations({
-            identifier: "project.updateCheck",
-            summary: "Check local updates",
-            description:
-              "Check if the local project is behind the upstream dev branch. Only meaningful in local mode.",
-          }),
-        ),
         HttpApiEndpoint.patch("update", `${root}/:projectID`, {
           params: { projectID: ProjectV2.ID },
           query: WorkspaceRoutingQuery,
