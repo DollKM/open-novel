@@ -11,6 +11,7 @@ import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import { ApiVcsApplyError } from "../groups/instance"
 import { markInstanceForDisposal } from "../lifecycle"
+import { ApiNotFoundError, ForbiddenError } from "../errors"
 
 export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance", (handlers) =>
   Effect.gen(function* () {
@@ -85,6 +86,19 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       return yield* skill.all()
     })
 
+    const removeSkill = Effect.fn("InstanceHttpApi.deleteSkill")(function* (ctx: {
+      params: { name: string }
+    }) {
+      return yield* skill.remove(ctx.params.name).pipe(
+        Effect.mapError((error) => {
+          if (error instanceof Skill.ForbiddenError)
+            return new ForbiddenError({ message: error.reason === "Cannot remove a built-in skill" ? error.reason : `Cannot remove skill "${error.name}": ${error.reason}` })
+          return new ApiNotFoundError({ name: "NotFoundError", data: { message: error.message } })
+        }),
+        Effect.as({ success: true }),
+      )
+    })
+
     const getLsp = Effect.fn("InstanceHttpApi.lsp")(function* () {
       return yield* lsp.status()
     })
@@ -104,6 +118,7 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       .handle("command", getCommand)
       .handle("agent", getAgent)
       .handle("skill", getSkill)
+      .handle("skillDelete", removeSkill)
       .handle("lsp", getLsp)
       .handle("formatter", getFormatter)
   }),

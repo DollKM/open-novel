@@ -13,6 +13,7 @@ import {
   WorkspaceRoutingQuery,
   WorkspaceRoutingQueryFields,
 } from "../middleware/workspace-routing"
+import { ApiNotFoundError, ForbiddenError } from "../errors"
 import { described } from "./metadata"
 
 const PathInfo = Schema.Struct({
@@ -40,6 +41,9 @@ export class ApiVcsApplyError extends Schema.ErrorClass<ApiVcsApplyError>("VcsAp
   { httpApiStatus: 400 },
 ) {}
 
+const SkillNameParam = Schema.Struct({ name: Schema.String })
+const SkillDeletePayload = Schema.Struct({ success: Schema.Boolean })
+
 export const InstancePaths = {
   dispose: "/instance/dispose",
   path: "/path",
@@ -51,6 +55,7 @@ export const InstancePaths = {
   command: "/command",
   agent: "/agent",
   skill: "/skill",
+  skillDelete: "/skill/:name",
   lsp: "/lsp",
   formatter: "/formatter",
 } as const
@@ -164,6 +169,18 @@ export const InstanceApi = HttpApi.make("instance")
             identifier: "app.skills",
             summary: "List skills",
             description: "Get a list of all available skills in the OpenCode system.",
+          }),
+        ),
+        HttpApiEndpoint.delete("skillDelete", InstancePaths.skillDelete, {
+          params: SkillNameParam,
+          query: WorkspaceRoutingQuery,
+          success: described(SkillDeletePayload, "Skill deleted"),
+          error: [ApiNotFoundError, ForbiddenError],
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "app.skill.delete",
+            summary: "Delete skill",
+            description: "Remove a skill by name. Deletes the SKILL.md file and its parent directory for disk-based skills, or the cache directory for remote skills.",
           }),
         ),
         HttpApiEndpoint.get("lsp", InstancePaths.lsp, {
