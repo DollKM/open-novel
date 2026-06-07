@@ -25,8 +25,7 @@ export const configHandlers = HttpApiBuilder.group(InstanceHttpApi, "config", (h
     const getClientData = Effect.fn("ConfigHttpApi.getClientData")(function* () {
       const request = yield* HttpServerRequest.HttpServerRequest
       const key = new URL(request.url, "http://localhost").searchParams.get("key")
-      const config = yield* configSvc.get()
-      const all = (config.client_data ?? {}) as Record<string, string>
+      const all = yield* configSvc.readClientData()
       if (key) return { [key]: all[key] ?? "" }
       return all
     })
@@ -36,13 +35,13 @@ export const configHandlers = HttpApiBuilder.group(InstanceHttpApi, "config", (h
       const key = new URL(request.url, "http://localhost").searchParams.get("key")
       if (key) {
         // Merge single entry
-        const config = yield* configSvc.get()
-        const data = { ...(config.client_data ?? {}), [key]: ctx.payload[key] ?? "" }
-        yield* configSvc.update({ client_data: data } as Parameters<typeof configSvc.update>[0])
+        const all = yield* configSvc.readClientData()
+        const data = { ...all, [key]: ctx.payload[key] ?? "" }
+        yield* configSvc.writeClientData(data)
         return { [key]: data[key] }
       }
       // Full replace
-      yield* configSvc.update({ client_data: ctx.payload } as Parameters<typeof configSvc.update>[0])
+      yield* configSvc.writeClientData(ctx.payload)
       return ctx.payload
     })
 
