@@ -80,6 +80,11 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Ski
   }
 }
 
+export class ForbiddenError extends Schema.TaggedErrorClass<ForbiddenError>()("Skill.ForbiddenError", {
+  name: Schema.String,
+  reason: Schema.String,
+}) {}
+
 type State = {
   skills: Record<string, Info>
   dirs: Set<string>
@@ -101,6 +106,7 @@ export interface Interface {
   readonly all: () => Effect.Effect<Info[]>
   readonly dirs: () => Effect.Effect<string[]>
   readonly available: (agent?: Agent.Info) => Effect.Effect<Info[]>
+  readonly remove: (name: string) => Effect.Effect<void, NotFoundError | ForbiddenError>
 }
 
 const add = Effect.fnUntraced(function* (state: State, match: string, events: EventV2Bridge.Service["Service"]) {
@@ -314,7 +320,22 @@ export const layer = Layer.effect(
       return list.filter((skill) => Permission.evaluate("skill", skill.name, agent.permission).action !== "deny")
     })
 
-    return Service.of({ get, require, all, dirs, available })
+    const remove = Effect.fn("Skill.remove")(function* (name: string) {
+      const s = yield* InstanceState.get(state)
+      const info = s.skills[name]
+      if (!info) return yield* new NotFoundError({ name, available: Object.keys(s.skills).toSorted() })
+      if (info.location === "<built-in>")
+        return yield* new ForbiddenError({ name, reason: "Cannot remove a built-in skill" })
+
+      const cache = path.join(global.cache, "skills")
+      const parentDir = path.dirname(info.location)
+      const isCached = parentDir.startsWith(cache)
+      yield* fsys.remove(parentDir, { recursive: true }).pipe(Effect.catch(() => Effect.void))
+
+      delete s.skills[name]
+    })
+
+    return Service.of({ get, require, all, dirs, available, remove })
   }),
 )
 
