@@ -134,8 +134,6 @@ const targets = singleFlag
     })
   : allTargets
 
-await $`rm -rf dist`
-
 const binaries: Record<string, string> = {}
 if (!skipInstall) {
   await $`bun install --os="*" --cpu="*" @opentui/core@${pkg.dependencies["@opentui/core"]}`
@@ -153,6 +151,9 @@ for (const item of targets) {
     .filter(Boolean)
     .join("-")
   console.log(`building ${name}`)
+  const outDir = `dist/${name}`
+  const prevBinary = item.os === "win32" ? `${outDir}/bin/opencode.exe` : `${outDir}/bin/opencode`
+  fs.rmSync(prevBinary, { force: true })
   await $`mkdir -p dist/${name}/bin`
 
   const localPath = path.resolve(dir, "node_modules/@opentui/core/parser.worker.js")
@@ -209,7 +210,7 @@ for (const item of targets) {
     }
   }
 
-  await $`rm -rf ./dist/${name}/bin/tui`
+  fs.rmSync(`./dist/${name}/bin/tui`, { recursive: true, force: true })
   await Bun.file(`dist/${name}/package.json`).write(
     JSON.stringify(
       {
