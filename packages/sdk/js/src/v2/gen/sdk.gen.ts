@@ -8,6 +8,8 @@ import type {
   AppAgentsResponses,
   AppLogErrors,
   AppLogResponses,
+  AppSkillDeleteErrors,
+  AppSkillDeleteResponses,
   AppSkillsErrors,
   AppSkillsResponses,
   Auth as Auth3,
@@ -533,6 +535,39 @@ export class App extends HeyApiClient {
     )
     return (options?.client ?? this.client).get<AppSkillsResponses, AppSkillsErrors, ThrowOnError>({
       url: "/skill",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Delete skill
+   *
+   * Remove a skill by name. Deletes the SKILL.md file and its parent directory
+   * for disk-based skills, or the cache directory for remote skills.
+   */
+  public deleteSkill<ThrowOnError extends boolean = false>(
+    parameters: {
+      name: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "path", key: "name" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).delete<AppSkillDeleteResponses, AppSkillDeleteErrors, ThrowOnError>({
+      url: "/skill/{name}",
       ...options,
       ...params,
     })

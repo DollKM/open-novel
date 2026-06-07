@@ -6478,6 +6478,44 @@ export type AppSkillsResponses = {
 
 export type AppSkillsResponse = AppSkillsResponses[keyof AppSkillsResponses]
 
+export type AppSkillDeleteData = {
+  body?: never
+  path: {
+    name: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/skill/{name}"
+}
+
+export type AppSkillDeleteErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+  /**
+   * Forbidden
+   */
+  403: {
+    message: string
+  }
+}
+
+export type AppSkillDeleteError = AppSkillDeleteErrors[keyof AppSkillDeleteErrors]
+
+export type AppSkillDeleteResponses = {
+  /**
+   * Skill deleted successfully
+   */
+  200: {
+    success: boolean
+  }
+}
+
+export type AppSkillDeleteResponse = AppSkillDeleteResponses[keyof AppSkillDeleteResponses]
+
 export type LspStatusData = {
   body?: never
   path?: never
