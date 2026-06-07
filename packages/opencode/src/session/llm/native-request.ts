@@ -95,6 +95,21 @@ const contentPart = (part: unknown) => {
       providerExecuted: typeof part.providerExecuted === "boolean" ? part.providerExecuted : undefined,
       providerMetadata: partProviderMetadata(part),
     })
+  if (part.type === "image") {
+    const imageStr = String(part.image)
+    const match = imageStr.match(/^data:([^;]+);base64,(.+)$/)
+    if (match) {
+      return {
+        type: "media" as const,
+        mediaType: match[1],
+        data: match[2],
+      }
+    }
+    return {
+      type: "text" as const,
+      text: `[Image: ${imageStr}]`,
+    }
+  }
   if (part.type === "tool-result") return toolResult(part)
   throw new Error(`Native LLM request adapter does not support ${String(part.type)} content parts`)
 }
