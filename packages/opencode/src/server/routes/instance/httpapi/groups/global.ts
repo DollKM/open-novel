@@ -51,7 +51,6 @@ const GlobalEventSchema = Schema.Struct({
 
 export const GlobalUpgradeInput = Schema.Struct({
   target: Schema.optional(Schema.String),
-  source_path: Schema.optional(Schema.String),
 })
 
 const GlobalUpgradeResult = Schema.Union([

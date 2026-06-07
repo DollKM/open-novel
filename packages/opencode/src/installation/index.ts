@@ -5,7 +5,6 @@ import { withTransientReadRetry } from "@/util/effect-http-client"
 import { errorMessage } from "@/util/error"
 import { ChildProcess } from "effect/unstable/process"
 import { AppProcess } from "@opencode-ai/core/process"
-import fs from "fs"
 import path from "path"
 import { EventV2 } from "@opencode-ai/core/event"
 import * as Log from "@opencode-ai/core/util/log"
@@ -16,7 +15,7 @@ import { NpmConfig } from "@opencode-ai/core/npm-config"
 
 const log = Log.create({ service: "installation" })
 
-export type Method = "curl" | "npm" | "yarn" | "pnpm" | "bun" | "brew" | "scoop" | "choco" | "local" | "unknown"
+export type Method = "curl" | "npm" | "yarn" | "pnpm" | "bun" | "brew" | "scoop" | "choco" | "unknown"
 
 export type ReleaseType = "patch" | "minor" | "major"
 
@@ -86,18 +85,11 @@ const ChocoPackage = Schema.Struct({
 })
 const ScoopManifest = NpmPackage
 
-export interface UpgradeOptions {
-  sourcePath?: string
-  configService?: {
-    updateGlobal: (config: { source_path?: string }) => Effect.Effect<{ info: unknown; changed: boolean }>
-  }
-}
-
 export interface Interface {
   readonly info: () => Effect.Effect<Info>
   readonly method: () => Effect.Effect<Method>
   readonly latest: (method?: Method) => Effect.Effect<string>
-  readonly upgrade: (method: Method, target: string, options?: UpgradeOptions) => Effect.Effect<void, UpgradeFailedError>
+  readonly upgrade: (method: Method, target: string) => Effect.Effect<void, UpgradeFailedError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Installation") {}
@@ -283,7 +275,7 @@ export const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProce
         const data = yield* HttpClientResponse.schemaBodyJson(GitHubRelease)(response)
         return data.tag_name.replace(/^v/, "")
       }, Effect.orDie),
-      upgrade: Effect.fn("Installation.upgrade")(function* (m: Method, target: string, options?: UpgradeOptions) {
+      upgrade: Effect.fn("Installation.upgrade")(function* (m: Method, target: string) {
         let upgradeResult: { code: number; stdout: string; stderr: string } | undefined
         switch (m) {
           case "curl":
@@ -326,163 +318,6 @@ export const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProce
           case "scoop":
             upgradeResult = yield* run(["scoop", "install", `opencode@${target}`])
             break
-          case "local": {
-            const sourceRoot = options?.sourcePath || process.env.OPENCODE_SOURCE_ROOT
-            if (!sourceRoot) {
-              return yield* new UpgradeFailedError({ stderr: "source_path is required for local build" })
-            }
-
-            // Verify source directory
-            const buildScriptPath = path.join(sourceRoot, "packages/opencode/script/build.ts")
-            const buildScriptExists = yield* Effect.sync(() => fs.existsSync(buildScriptPath))
-            if (!buildScriptExists) {
-              return yield* new UpgradeFailedError({
-                stderr: `Build script not found at ${buildScriptPath}. Ensure source_path points to the opencode repository root.`,
-              })
-            }
-
-            // Save sourcePath to config
-            if (options?.configService) {
-              yield* options.configService.updateGlobal({ source_path: sourceRoot })
-            }
-
-            // Git sync: stash local changes
-            yield* run(["git", "stash", "push", "-m", "upgrade: auto stash before sync"], { cwd: sourceRoot })
-
-            // Ensure upstream remote exists
-            const upstreamUrl = yield* text(["git", "remote", "get-url", "upstream"], { cwd: sourceRoot })
-            if (!upstreamUrl.trim()) {
-              const addResult = yield* run(
-                ["git", "remote", "add", "upstream", "https://github.com/anomalyco/opencode.git"],
-                { cwd: sourceRoot },
-              )
-              if (addResult.code !== 0) {
-                return yield* new UpgradeFailedError({ stderr: `Failed to add upstream remote: ${addResult.stderr}` })
-              }
-            }
-
-            // Fetch upstream/dev
-            const fetchResult = yield* run(["git", "fetch", "upstream", "dev"], { cwd: sourceRoot })
-            if (fetchResult.code !== 0) {
-              return yield* new UpgradeFailedError({ stderr: `Git fetch upstream/dev failed: ${fetchResult.stderr}` })
-            }
-
-            // Checkout dev and merge upstream/dev
-            const checkoutDevResult = yield* run(["git", "checkout", "dev"], { cwd: sourceRoot })
-            if (checkoutDevResult.code !== 0) {
-              return yield* new UpgradeFailedError({
-                stderr: `Git checkout dev failed: ${checkoutDevResult.stderr}`,
-              })
-            }
-            const mergeResult = yield* run(["git", "merge", "upstream/dev", "--ff-only"], { cwd: sourceRoot })
-            if (mergeResult.code !== 0) {
-              const mergeFallback = yield* run(["git", "merge", "upstream/dev"], { cwd: sourceRoot })
-              if (mergeFallback.code !== 0) {
-                return yield* new UpgradeFailedError({
-                  stderr: `Git merge upstream/dev into dev failed: ${mergeFallback.stderr}`,
-                })
-              }
-            }
-
-            // Push dev
-            const pushDevResult = yield* run(["git", "push", "origin", "dev", "--no-verify"], { cwd: sourceRoot })
-            if (pushDevResult.code !== 0) {
-              return yield* new UpgradeFailedError({ stderr: `Git push dev failed: ${pushDevResult.stderr}` })
-            }
-
-            // Checkout dev-cli and merge dev
-            const checkoutCliResult = yield* run(["git", "checkout", "dev-cli"], { cwd: sourceRoot })
-            if (checkoutCliResult.code !== 0) {
-              return yield* new UpgradeFailedError({
-                stderr: `Git checkout dev-cli failed: ${checkoutCliResult.stderr}`,
-              })
-            }
-            const mergeCliResult = yield* run(["git", "merge", "dev"], { cwd: sourceRoot })
-            if (mergeCliResult.code !== 0) {
-              return yield* new UpgradeFailedError({
-                stderr: `Git merge conflict on dev-cli: ${mergeCliResult.stderr}. Please resolve conflicts manually.`,
-              })
-            }
-
-            // Push dev-cli
-            const pushCliResult = yield* run(["git", "push", "origin", "dev-cli", "--no-verify"], { cwd: sourceRoot })
-            if (pushCliResult.code !== 0) {
-              return yield* new UpgradeFailedError({
-                stderr: `Git push dev-cli failed: ${pushCliResult.stderr}`,
-              })
-            }
-
-            // Restore stashed changes
-            yield* run(["git", "stash", "pop"], { cwd: sourceRoot })
-
-            // ---- Build process ----
-            // Phase 1: full build
-            upgradeResult = yield* run(
-              ["bun", "run", "./packages/opencode/script/build.ts", "--single"],
-              { cwd: sourceRoot },
-            )
-
-            // Check for errors in build output
-            const buildOutputText = `${upgradeResult.stdout}\n${upgradeResult.stderr}`.toLowerCase()
-            if (upgradeResult.code !== 0 || buildOutputText.includes("error:")) {
-              // Phase 2: retry without embedded web UI
-              upgradeResult = yield* run(
-                ["bun", "run", "./packages/opencode/script/build.ts", "--single", "--skip-embed-web-ui"],
-                { cwd: sourceRoot },
-              )
-            }
-
-            if (!upgradeResult || upgradeResult.code !== 0) {
-              return yield* new UpgradeFailedError({ stderr: upgradeFailure(m, upgradeResult) })
-            }
-
-            // Verify build output exists
-            const osName = process.platform === "win32" ? "windows" : process.platform
-            const binName = process.platform === "win32" ? "opencode.exe" : "opencode"
-            const targetName = `opencode-${osName}-${process.arch}`
-            const buildOutputPath = path.join(sourceRoot, "packages/opencode/dist", targetName, "bin", binName)
-            const buildOutputExists = yield* Effect.sync(() => fs.existsSync(buildOutputPath))
-            if (!buildOutputExists) {
-              return yield* new UpgradeFailedError({
-                stderr: `Build output not found at ${buildOutputPath}`,
-              })
-            }
-
-            // ---- Replace running binary ----
-            // Windows allows renaming a running exe (only the directory entry changes).
-            // After rename, the original path is free so we can copy the new binary.
-            const execPath = process.execPath
-            const oldPath = execPath + ".old"
-
-            // Remove stale .old if present
-            const oldExists = yield* Effect.sync(() => fs.existsSync(oldPath))
-            if (oldExists) {
-              yield* Effect.sync(() => fs.unlinkSync(oldPath))
-            }
-
-            // Rename current binary → .old (frees the original path)
-            yield* Effect.sync(() => fs.renameSync(execPath, oldPath))
-
-            // Copy new binary to the freed original path
-            try {
-              yield* Effect.sync(() => fs.copyFileSync(buildOutputPath, execPath))
-            } catch (err) {
-              // Rollback: restore old binary on copy failure
-              yield* Effect.sync(() => fs.renameSync(oldPath, execPath))
-              return yield* new UpgradeFailedError({
-                stderr: `Failed to copy new binary: ${errorMessage(err)}`,
-              })
-            }
-
-            log.info("local upgrade completed", {
-              method: "local",
-              sourceRoot,
-              target: execPath,
-            })
-
-            // Note: process restart is handled by the HTTP handler layer
-            break
-          }
           default:
             return yield* new UpgradeFailedError({ stderr: `Unknown installation method: ${m}` })
         }
