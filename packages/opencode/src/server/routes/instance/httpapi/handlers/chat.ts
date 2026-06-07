@@ -10,6 +10,7 @@ import * as Sse from "effect/unstable/encoding/Sse"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { ModelV2 } from "@opencode-ai/core/model"
 import { InstanceHttpApi } from "../api"
+import { Auth } from "@/auth"
 import type { ModelMessage } from "ai"
 
 // ── OpenAI SSE event helpers ──────────────────────────────────────────────
@@ -99,138 +100,96 @@ function convertMessage(msg: Record<string, unknown>): ModelMessage {
 type ResolveResult = { _tag: "ok"; model: import("@/provider/provider").Provider.Model; providerInfo: import("@/provider/provider").Provider.Info }
   | { _tag: "error"; response: HttpServerResponse.HttpServerResponse }
 
-function loadContext(body: Record<string, unknown>, provider: import("@/provider/provider").Provider.Interface): Effect.Effect<ResolveResult> {
-  const modelName = body.model
-  if (typeof modelName !== "string") {
-    return Effect.succeed({ _tag: "error" as const, response: chatError("model is required and must be a string", "invalid_request_error", 400) })
-  }
-  if (!Array.isArray(body.messages) || body.messages.length === 0) {
-    return Effect.succeed({ _tag: "error" as const, response: chatError("messages is required and must be a non-empty array", "invalid_request_error", 400) })
-  }
-  if (body.stream !== true) {
-    return Effect.succeed({ _tag: "error" as const, response: chatError("stream must be true", "invalid_request_error", 400) })
-  }
+function loadContext(body: Record<string, unknown>, provider: import("@/provider/provider").Provider.Interface, auth?: Auth.Interface): Effect.Effect<ResolveResult> {
+  return Effect.gen(function* () {
+    const modelName = body.model
+    if (typeof modelName !== "string") {
+      return { _tag: "error" as const, response: chatError("model is required and must be a string", "invalid_request_error", 400) } as ResolveResult
+    }
+    if (!Array.isArray(body.messages) || body.messages.length === 0) {
+      return { _tag: "error" as const, response: chatError("messages is required and must be a non-empty array", "invalid_request_error", 400) } as ResolveResult
+    }
+    if (body.stream !== true) {
+      return { _tag: "error" as const, response: chatError("stream must be true", "invalid_request_error", 400) } as ResolveResult
+    }
 
-  const parts = (modelName as string).split("/")
-  if (parts.length < 2) {
-    return Effect.succeed({ _tag: "error" as const, response: chatError(`model must be in "providerID/modelID" format`, "invalid_request_error", 400) })
-  }
+    const parts = (modelName as string).split("/")
+    if (parts.length < 2) {
+      return { _tag: "error" as const, response: chatError(`model must be in "providerID/modelID" format`, "invalid_request_error", 400) } as ResolveResult
+    }
 
-  const pid = ProviderV2.ID.make(parts[0])
-  const mid = ModelV2.ID.make(parts.slice(1).join("/"))
+    const pid = ProviderV2.ID.make(parts[0])
+    const mid = ModelV2.ID.make(parts.slice(1).join("/"))
 
-  return Effect.zip(
-    provider.getModel(pid, mid).pipe(
+    const model = yield* provider.getModel(pid, mid).pipe(
       Effect.catch(() => Effect.succeed(null as unknown as import("@/provider/provider").Provider.Model)),
-    ),
-    provider.getProvider(pid).pipe(
+    )
+    const info = yield* provider.getProvider(pid).pipe(
       Effect.catch(() => Effect.succeed(null as unknown as import("@/provider/provider").Provider.Info)),
-    ),
-  ).pipe(
-    Effect.map(([model, info]) => {
-      if (!model || !info) {
-        return { _tag: "error" as const, response: chatError(`Model not found: ${parts[0]}/${parts.slice(1).join("/")}`, "invalid_request_error", 400) }
+    )
+    if (!model || !info) {
+      // Fallback for opencode-go: construct model + provider on the fly.
+      // The model may not be registered in the provider database.
+      if (pid === ProviderV2.ID.make("opencode-go")) {
+        const modelID = parts.slice(1).join("/")
+        const fallbackModel: import("@/provider/provider").Provider.Model = {
+          id: mid,
+          providerID: pid,
+          api: { id: modelID, url: "https://opencode.ai/zen/go/v1", npm: "@ai-sdk/anthropic" },
+          name: modelID,
+          family: undefined,
+          capabilities: {
+            temperature: true,
+            reasoning: false,
+            attachment: false,
+            toolcall: true,
+            input: { text: true, audio: false, image: false, video: false, pdf: false },
+            output: { text: true, audio: false, image: false, video: false, pdf: false },
+            interleaved: false,
+          },
+          cost: {
+            input: 0,
+            output: 0,
+            cache: { read: 0, write: 0 },
+            tiers: undefined,
+            experimentalOver200K: undefined,
+          },
+          limit: { context: 131072, input: undefined, output: 4096 },
+          status: "active",
+          options: {},
+          headers: {},
+          release_date: "",
+          variants: undefined,
+        }
+        const fallbackInfo: import("@/provider/provider").Provider.Info = {
+          id: pid,
+          name: "OpenCode Go",
+          source: "config",
+          env: [],
+          key: undefined,
+          options: {
+            baseURL: "https://opencode.ai/zen/go/v1",
+            apiKey: "",
+          },
+          models: {},
+        }
+        if (auth) {
+          const authInfo = yield* auth.get(pid).pipe(Effect.catch(() => Effect.succeed(undefined)))
+          if (authInfo?.type === "api") fallbackInfo.options.apiKey = authInfo.key
+        }
+        return { _tag: "ok" as const, model: fallbackModel, providerInfo: fallbackInfo }
       }
-      return { _tag: "ok" as const, model, providerInfo: info }
-    }),
-  )
+      return { _tag: "error" as const, response: chatError(`Model not found: ${parts[0]}/${parts.slice(1).join("/")}`, "invalid_request_error", 400) }
+    }
+    return { _tag: "ok" as const, model, providerInfo: info }
+  })
 }
-
-/**
- * Handle POST /chat — OpenAI-compatible streaming chat completion.
- * Does NOT inject opencode context, skills, or tools.
- */
-const complete = (ctx: { request: HttpServerRequest.HttpServerRequest }) =>
-  Effect.flatMap(ctx.request.text, (raw) =>
-    Effect.flatMap(
-      Effect.try({
-        try: () => JSON.parse(raw) as Record<string, unknown>,
-        catch: () => new Error("Invalid JSON body"),
-      }),
-      (body) =>
-        Effect.flatMap(Provider.Service, (provider) =>
-          Effect.flatMap(loadContext(body, provider), (resolved) => {
-            if (resolved._tag === "error") return Effect.succeed(resolved.response)
-
-            const { model, providerInfo } = resolved
-
-            return Effect.flatMap(LLMClient.Service, (llmClient) => {
-              const messages = (body.messages as Array<Record<string, unknown>>).map(convertMessage)
-              const abort = new AbortController()
-
-              const result = LLMNativeRuntime.stream({
-                model,
-                provider: providerInfo,
-                auth: undefined,
-                llmClient,
-                messages,
-                tools: {},
-                temperature: typeof body.temperature === "number" ? body.temperature : undefined,
-                topP: typeof body.top_p === "number" ? body.top_p : undefined,
-                maxOutputTokens: typeof body.max_tokens === "number" ? body.max_tokens : undefined,
-                headers: {},
-                abort: abort.signal,
-              })
-
-              if (result.type === "unsupported") {
-                return Effect.succeed(chatError(result.reason, "upstream_error", 502))
-              }
-
-              const id = chatId()
-              let currentFinishReason = "stop"
-
-              const sseStream = result.stream.pipe(
-                Stream.flatMap((event: LLMEvent) => {
-                  switch (event.type) {
-                    case "text-delta":
-                      return Stream.make(sseChunk(id, { content: event.text }))
-                    case "reasoning-delta":
-                      return Stream.make(sseChunk(id, { reasoning_content: event.text }))
-                    case "finish": {
-                      currentFinishReason = event.reason ?? "stop"
-                      const usage = event.usage
-                      if (usage) {
-                        const u: { prompt_tokens?: number; completion_tokens?: number } = {}
-                        if (usage.inputTokens !== undefined) u.prompt_tokens = usage.inputTokens
-                        if (usage.outputTokens !== undefined) u.completion_tokens = usage.outputTokens
-                        return Stream.make(sseChunkWithUsage(id, currentFinishReason, u))
-                      }
-                      return Stream.empty
-                    }
-                    case "provider-error":
-                      return Stream.make(sseChunk(id, {}, 0, "error"))
-                    default:
-                      return Stream.empty
-                  }
-                }),
-                Stream.concat(Stream.sync(() => sseDone)),
-              )
-
-              return Effect.succeed(
-                HttpServerResponse.stream(
-                  sseStream.pipe(
-                    Stream.pipeThroughChannel(Sse.encode()),
-                    Stream.encodeText,
-                  ),
-                  {
-                    contentType: "text/event-stream",
-                    headers: {
-                      "Cache-Control": "no-cache",
-                      Connection: "keep-alive",
-                    },
-                  },
-                ),
-              )
-            })
-          }),
-        ),
-    ),
-  )
 
 export const chatHandlers = HttpApiBuilder.group(InstanceHttpApi, "chat", (handlers) =>
   Effect.gen(function* () {
     const provider = yield* Provider.Service
     const llmClient = yield* LLMClient.Service
+    const auth = yield* Auth.Service
 
     const complete = (ctx: { request: HttpServerRequest.HttpServerRequest }) =>
       Effect.catch(
@@ -245,7 +204,7 @@ export const chatHandlers = HttpApiBuilder.group(InstanceHttpApi, "chat", (handl
           })
 
           // Resolve model and provider context
-          const resolved = yield* loadContext(body, provider)
+          const resolved = yield* loadContext(body, provider, auth)
           if (resolved._tag === "error") return resolved.response
 
           const { model, providerInfo } = resolved
@@ -299,6 +258,7 @@ export const chatHandlers = HttpApiBuilder.group(InstanceHttpApi, "chat", (handl
             }),
             Stream.concat(Stream.sync(() => sseDone)),
           )
+
 
           return HttpServerResponse.stream(
             sseStream.pipe(
