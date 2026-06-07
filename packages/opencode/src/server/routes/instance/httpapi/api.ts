@@ -3,6 +3,7 @@ import { HttpApi } from "effect/unstable/httpapi"
 import { EventV2 } from "@opencode-ai/core/event"
 import { InstanceDisposed } from "@/server/event"
 import { Question } from "@/question"
+import { Api } from "@opencode-ai/server/api"
 import { ChatApi } from "./groups/chat"
 import { ConfigApi } from "./groups/config"
 import { ControlApi } from "./groups/control"
@@ -10,6 +11,7 @@ import { ControlPlaneApi } from "./groups/control-plane"
 import { EventApi } from "./groups/event"
 import { ExperimentalApi } from "./groups/experimental"
 import { FileApi } from "./groups/file"
+import { GlobalApi } from "./groups/global"
 import { InstanceApi } from "./groups/instance"
 import { McpApi } from "./groups/mcp"
 import { PermissionApi } from "./groups/permission"
@@ -18,15 +20,15 @@ import { ProjectCopyApi } from "./groups/project-copy"
 import { ProviderApi } from "./groups/provider"
 import { PtyApi, PtyConnectApi } from "./groups/pty"
 import { QuestionApi } from "./groups/question"
+import { ReferenceApi } from "./groups/reference"
 import { SessionApi } from "./groups/session"
 import { SyncApi } from "./groups/sync"
 import { TuiApi } from "./groups/tui"
 import { WorkspaceApi } from "./groups/workspace"
-import { V2Api } from "@opencode-ai/server/api"
-// GlobalEventSchema snapshots the registry after event-producing groups register their variants.
-import { GlobalApi } from "./groups/global"
 import { Authorization } from "./middleware/authorization"
 import { SchemaErrorMiddleware } from "./middleware/schema-error"
+
+// GlobalEventSchema snapshots the registry after event-producing groups register their variants.
 
 const EventSchema = Schema.Union([
   ...EventV2.registry
@@ -56,12 +58,13 @@ export const InstanceHttpApi = HttpApi.make("opencode-instance")
   .addHttpApi(FileApi)
   .addHttpApi(InstanceApi)
   .addHttpApi(McpApi)
+  .addHttpApi(PermissionApi)
   .addHttpApi(ProjectApi)
   .addHttpApi(ProjectCopyApi)
+  .addHttpApi(ProviderApi)
   .addHttpApi(PtyApi)
   .addHttpApi(QuestionApi)
-  .addHttpApi(PermissionApi)
-  .addHttpApi(ProviderApi)
+  .addHttpApi(ReferenceApi)
   .addHttpApi(SessionApi)
   .addHttpApi(SyncApi)
   .addHttpApi(TuiApi)
@@ -72,7 +75,7 @@ export const OpenCodeHttpApi = HttpApi.make("opencode")
   .addHttpApi(RootHttpApi)
   .addHttpApi(EventApi)
   .addHttpApi(InstanceHttpApi)
-  .addHttpApi(V2Api)
+  .addHttpApi(Api)
   .addHttpApi(PtyConnectApi)
   .annotate(HttpApi.AdditionalSchemas, [EventSchema, Question.Replied, Question.Rejected])
 
