@@ -140,6 +140,11 @@ const table = sqliteTable("session", {
 
 - Always run `bun typecheck` from package directories (e.g., `packages/opencode`), never `tsc` directly.
 
+## Server Logs
+
+- Server logs（包括 HTTP API 的 500 错误堆栈）写入 `~/.local/share/opencode/log/`。非 dev 模式按时间戳命名（`YYYY-MM-DDTHHmmss.log`），dev 模式为 `dev.log`。
+- 全局 error 层（`errorLayer`）产生的 `UnknownError` 会附带 `ref` 字段（如 `err_xxxx`），在日志中搜索该 ref 即可定位对应错误。
+
 ## V2 Session Core
 
 - Keep durable prompt admission separate from model execution. `SessionV2.prompt(...)` admits one durable `session_input` row before scheduling advisory `SessionExecution.wake(sessionID)` unless `resume: false` requests admit-only behavior. The serialized runner promotes admitted inputs into visible user messages at safe boundaries.
