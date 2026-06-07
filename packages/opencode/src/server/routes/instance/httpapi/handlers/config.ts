@@ -2,6 +2,7 @@ import { Config } from "@/config/config"
 import { Provider } from "@/provider/provider"
 import * as InstanceState from "@/effect/instance-state"
 import { Effect } from "effect"
+import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import { markInstanceForDisposal } from "../lifecycle"
@@ -21,6 +22,30 @@ export const configHandlers = HttpApiBuilder.group(InstanceHttpApi, "config", (h
       return ctx.payload
     })
 
+    const getClientData = Effect.fn("ConfigHttpApi.getClientData")(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest
+      const key = new URL(request.url, "http://localhost").searchParams.get("key")
+      const config = yield* configSvc.get()
+      const all = (config.client_data ?? {}) as Record<string, string>
+      if (key) return { [key]: all[key] ?? "" }
+      return all
+    })
+
+    const updateClientData = Effect.fn("ConfigHttpApi.updateClientData")(function* (ctx) {
+      const request = yield* HttpServerRequest.HttpServerRequest
+      const key = new URL(request.url, "http://localhost").searchParams.get("key")
+      if (key) {
+        // Merge single entry
+        const config = yield* configSvc.get()
+        const data = { ...(config.client_data ?? {}), [key]: ctx.payload[key] ?? "" }
+        yield* configSvc.update({ client_data: data } as Parameters<typeof configSvc.update>[0])
+        return { [key]: data[key] }
+      }
+      // Full replace
+      yield* configSvc.update({ client_data: ctx.payload } as Parameters<typeof configSvc.update>[0])
+      return ctx.payload
+    })
+
     const providers = Effect.fn("ConfigHttpApi.providers")(function* () {
       const providers = yield* providerSvc.list()
       return {
@@ -29,6 +54,11 @@ export const configHandlers = HttpApiBuilder.group(InstanceHttpApi, "config", (h
       }
     })
 
-    return handlers.handle("get", get).handle("update", update).handle("providers", providers)
+    return handlers
+      .handle("get", get)
+      .handle("update", update)
+      .handle("getClientData", getClientData)
+      .handle("updateClientData", updateClientData)
+      .handle("providers", providers)
   }),
 )

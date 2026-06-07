@@ -1,11 +1,21 @@
 import { Config } from "@/config/config"
 import { ConfigV1 } from "@opencode-ai/core/v1/config/config"
 import { Provider } from "@/provider/provider"
+import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiError, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
 import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
-import { WorkspaceRoutingMiddleware, WorkspaceRoutingQuery } from "../middleware/workspace-routing"
+import {
+  WorkspaceRoutingMiddleware,
+  WorkspaceRoutingQuery,
+  WorkspaceRoutingQueryFields,
+} from "../middleware/workspace-routing"
 import { described } from "./metadata"
+
+const ClientDataQuery = Schema.Struct({
+  ...WorkspaceRoutingQueryFields,
+  key: Schema.optional(Schema.String),
+}).annotate({ identifier: "ClientDataQuery" })
 
 const root = "/config"
 
@@ -43,6 +53,36 @@ export const ConfigApi = HttpApi.make("config")
             identifier: "config.providers",
             summary: "List config providers",
             description: "Get a list of all configured AI providers and their default models.",
+          }),
+        ),
+        HttpApiEndpoint.get("getClientData", `${root}/client_data`, {
+          query: ClientDataQuery,
+          success: described(
+            Schema.Record(Schema.String, Schema.String).annotate({ identifier: "ClientData" }),
+            "Client data dictionary",
+          ),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "config.getClientData",
+            summary: "Get client data",
+            description:
+              "Retrieve client data. Without ?key returns the full dictionary; with ?key=<id> returns { <id>: <value> }.",
+          }),
+        ),
+        HttpApiEndpoint.put("updateClientData", `${root}/client_data`, {
+          query: WorkspaceRoutingQuery,
+          payload: Schema.Record(Schema.String, Schema.String).annotate({ identifier: "ClientDataPayload" }),
+          success: described(
+            Schema.Record(Schema.String, Schema.String).annotate({ identifier: "ClientDataResponse" }),
+            "Client data dictionary",
+          ),
+          error: HttpApiError.BadRequest,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "config.updateClientData",
+            summary: "Update client data",
+            description:
+              "Update client data. Without ?key replaces the entire dictionary; with ?key=<id> merges only that entry. Does not trigger instance reload.",
           }),
         ),
       )
