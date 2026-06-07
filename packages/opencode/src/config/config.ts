@@ -131,6 +131,8 @@ export interface Interface {
   readonly invalidate: () => Effect.Effect<void>
   readonly directories: () => Effect.Effect<string[]>
   readonly waitForDependencies: () => Effect.Effect<void>
+  readonly readClientData: () => Effect.Effect<Record<string, string>>
+  readonly writeClientData: (data: Record<string, string>) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Config") {}
@@ -624,6 +626,27 @@ export const layer = Layer.effect(
         .pipe(Effect.orDie)
     })
 
+    const clientDataPath = path.join(Global.Path.config, "client_data.json")
+
+    const readClientData = Effect.fn("Config.readClientData")(function* () {
+      const content = yield* fs.readFileStringSafe(clientDataPath).pipe(Effect.orDie)
+      if (!content) return {}
+      const parsed = yield* Effect.sync(() => {
+        try {
+          return JSON.parse(content) as Record<string, string>
+        } catch {
+          return {}
+        }
+      })
+      return parsed
+    })
+
+    const writeClientData = Effect.fn("Config.writeClientData")(function* (data: Record<string, string>) {
+      yield* fs
+        .writeFileString(clientDataPath, JSON.stringify(data, null, 2))
+        .pipe(Effect.orDie)
+    })
+
     const invalidate = Effect.fn("Config.invalidate")(function* () {
       yield* invalidateGlobal
     })
@@ -662,6 +685,8 @@ export const layer = Layer.effect(
       invalidate,
       directories,
       waitForDependencies,
+      readClientData,
+      writeClientData,
     })
   }),
 )
