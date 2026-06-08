@@ -73,7 +73,7 @@ import {
 } from "./middleware/authorization"
 import { EventApi } from "./groups/event"
 import { PtyConnectApi } from "./groups/pty"
-import { chatHandlers } from "./handlers/chat"
+import { queryImageHandlers } from "./handlers/query-image"
 import { eventHandlers } from "./handlers/event"
 import { configHandlers } from "./handlers/config"
 import { controlHandlers } from "./handlers/control"
@@ -143,8 +143,8 @@ const ptyConnectApiRoutes = HttpApiBuilder.layer(PtyConnectApi).pipe(
 )
 const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
   Layer.provide([
-    chatHandlers,
     configHandlers,
+    queryImageHandlers,
     experimentalHandlers,
     fileHandlers,
     instanceHandlers,

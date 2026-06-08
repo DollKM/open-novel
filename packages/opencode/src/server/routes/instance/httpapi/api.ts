@@ -4,8 +4,8 @@ import { EventV2 } from "@opencode-ai/core/event"
 import { InstanceDisposed } from "@/server/event"
 import { Question } from "@/question"
 import { Api } from "@opencode-ai/server/api"
-import { ChatApi } from "./groups/chat"
 import { ConfigApi } from "./groups/config"
+import { QueryImageApi } from "./groups/query-image"
 import { ControlApi } from "./groups/control"
 import { ControlPlaneApi } from "./groups/control-plane"
 import { EventApi } from "./groups/event"
@@ -52,8 +52,8 @@ export const RootHttpApi = HttpApi.make("opencode-root")
   .middleware(Authorization)
 
 export const InstanceHttpApi = HttpApi.make("opencode-instance")
-  .addHttpApi(ChatApi)
   .addHttpApi(ConfigApi)
+  .addHttpApi(QueryImageApi)
   .addHttpApi(ExperimentalApi)
   .addHttpApi(FileApi)
   .addHttpApi(InstanceApi)
