@@ -9,7 +9,7 @@ export const Parameters = Schema.Struct({
 export const InvalidTool = Tool.define(
   "invalid",
   Effect.succeed({
-    description: "Do not use",
+    description: "不要使用",
     parameters: Parameters,
     execute: (params: { tool: string; error: string }) =>
       Effect.succeed({

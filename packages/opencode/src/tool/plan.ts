@@ -35,8 +35,8 @@ export const PlanExitTool = Tool.define(
                 header: "Build Agent",
                 custom: false,
                 options: [
-                  { label: "Yes", description: "Switch to build agent and start implementing the plan" },
-                  { label: "No", description: "Stay with plan agent to continue refining the plan" },
+                  { label: "是", description: "切换到构建代理并开始执行计划" },
+                  { label: "否", description: "留在规划代理以继续完善计划" },
                 ],
               },
             ],

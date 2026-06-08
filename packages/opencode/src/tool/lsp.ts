@@ -21,16 +21,16 @@ const operations = [
 ] as const
 
 export const Parameters = Schema.Struct({
-  operation: Schema.Literals(operations).annotate({ description: "The LSP operation to perform" }),
-  filePath: Schema.String.annotate({ description: "The absolute or relative path to the file" }),
-  line: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)).annotate({
-    description: "The line number (1-based, as shown in editors)",
+  operation: Schema.Literals(operations).annotate({ description: "要执行的 LSP 操作" }),
+  filePath: Schema.String.annotate({ description: "文件的绝对或相对路径" }),
+  line: Schema.optional(NonNegativeInt).annotate({
+    description: "行号（基于 1，如编辑器中所示）",
   }),
-  character: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)).annotate({
-    description: "The character offset (1-based, as shown in editors)",
+  character: Schema.optional(NonNegativeInt).annotate({
+    description: "字符偏移量（基于 1，如编辑器中所示）",
   }),
   query: Schema.optional(Schema.String).annotate({
-    description: "Search query for workspaceSymbol. Empty string requests all symbols.",
+    description: "workspaceSymbol 的搜索查询。空字符串请求所有符号。",
   }),
 })
 

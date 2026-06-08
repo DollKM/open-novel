@@ -9,9 +9,9 @@ import * as Tool from "./tool"
 import { Reference } from "@/reference/reference"
 
 export const Parameters = Schema.Struct({
-  pattern: Schema.String.annotate({ description: "The glob pattern to match files against" }),
+  pattern: Schema.String.annotate({ description: "用于匹配文件的 glob 模式" }),
   path: Schema.optional(Schema.String).annotate({
-    description: `The directory to search in. If not specified, the current working directory will be used. IMPORTANT: Omit this field to use the default directory. DO NOT enter "undefined" or "null" - simply omit it for the default behavior. Must be a valid directory path if provided.`,
+    description: `要搜索的目录。如果未指定，将使用当前工作目录。重要提示：省略此字段以使用默认目录。不要输入 "undefined" 或 "null"——只需省略即可使用默认行为。如果提供，必须是有效的目录路径。`,
   }),
 })
 

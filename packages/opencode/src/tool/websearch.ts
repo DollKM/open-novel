@@ -8,19 +8,19 @@ import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 
 export const Parameters = Schema.Struct({
-  query: Schema.String.annotate({ description: "Websearch query" }),
+  query: Schema.String.annotate({ description: "网页搜索查询" }),
   numResults: Schema.optional(Schema.Number).annotate({
-    description: "Number of search results to return (default: 8)",
+    description: "返回的搜索结果数量（默认 8）",
   }),
   livecrawl: Schema.optional(Schema.Literals(["fallback", "preferred"])).annotate({
     description:
-      "Live crawl mode - 'fallback': use live crawling as backup if cached content unavailable, 'preferred': prioritize live crawling (default: 'fallback')",
+      "实时爬取模式 - 'fallback'：缓存内容不可用时使用实时爬取作为备份，'preferred'：优先实时爬取（默认 'fallback'）",
   }),
   type: Schema.optional(Schema.Literals(["auto", "fast", "deep"])).annotate({
-    description: "Search type - 'auto': balanced search (default), 'fast': quick results, 'deep': comprehensive search",
+    description: "搜索类型 - 'auto'：均衡搜索（默认），'fast'：快速结果，'deep'：全面搜索",
   }),
   contextMaxCharacters: Schema.optional(Schema.Number).annotate({
-    description: "Maximum characters for context string optimized for LLMs (default: 10000)",
+    description: "为 LLM 优化的上下文字符串最大字符数（默认 10000）",
   }),
 })
 

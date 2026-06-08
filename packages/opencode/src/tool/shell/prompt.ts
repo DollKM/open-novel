@@ -21,10 +21,10 @@ export type Limits = {
 
 export function parameterSchema(description: string) {
   return Schema.Struct({
-    command: Schema.String.annotate({ description: "The command to execute" }),
-    timeout: Schema.optional(PositiveInt).annotate({ description: "Optional timeout in milliseconds" }),
+    command: Schema.String.annotate({ description: "要执行的命令" }),
+    timeout: Schema.optional(PositiveInt).annotate({ description: "可选的超时时间（毫秒）" }),
     workdir: Schema.optional(Schema.String).annotate({
-      description: `The working directory to run the command in. Defaults to the current directory. Use this instead of 'cd' commands.`,
+      description: `命令执行的工作目录。默认为当前目录。请使用此参数代替 'cd' 命令。`,
     }),
     description: Schema.String.annotate({ description }),
   })
@@ -234,22 +234,22 @@ function profile(name: string, platform: NodeJS.Platform, limits: Limits, defaul
   const chain = chainGuidance(name)
   if (CMD.has(name)) {
     return {
-      intro: `Executes a given ${shellDisplayName(name)} command with optional timeout, ensuring proper handling and security measures.`,
+      intro: `在持久的 Shell 会话中执行给定的 ${shellDisplayName(name)} 命令，具有可选的超时设置，确保适当的处理和安全措施。`,
       workdirSection:
-        "All commands run in the current working directory by default. Use the `workdir` parameter if you need to run a command in a different directory. AVOID changing directories inside the command - use `workdir` instead.",
+        "所有命令默认在当前工作目录中运行。如果你需要在不同目录中运行命令，请使用 `workdir` 参数。避免在命令内部更改目录——请改用 `workdir`。",
       commandSection: cmdCommandSection(chain, limits, defaultTimeoutMs),
-      gitCommands: "git commands",
-      gitCommandRestriction: "git commands",
-      createPrInstruction: "Create PR using a temporary body file so cmd.exe quoting stays simple.",
+      gitCommands: "git 命令",
+      gitCommandRestriction: "git 命令",
+      createPrInstruction: "使用临时 body 文件创建 PR，以便 cmd.exe 引号保持简单。",
       createPrExample: `(\n  echo ## Summary\n  echo - ^<1-3 bullet points^>\n) > pr-body.txt\ngh pr create --title "the pr title" --body-file pr-body.txt`,
       parameterDescription: descriptions.cmd,
     }
   }
   if (isPowerShell) {
     return {
-      intro: `Executes a given ${shellDisplayName(name)} command with optional timeout, ensuring proper handling and security measures.`,
+      intro: `在持久的 Shell 会话中执行给定的 ${shellDisplayName(name)} 命令，具有可选的超时设置，确保适当的处理和安全措施。`,
       workdirSection:
-        "All commands run in the current working directory by default. Use the `workdir` parameter if you need to run a command in a different directory. AVOID changing directories inside the command - use `workdir` instead.",
+        "所有命令默认在当前工作目录中运行。如果你需要在不同目录中运行命令，请使用 `workdir` 参数。避免在命令内部更改目录——请改用 `workdir`。",
       commandSection: powershellCommandSection(
         name,
         chain,
@@ -257,9 +257,9 @@ function profile(name: string, platform: NodeJS.Platform, limits: Limits, defaul
         limits,
         defaultTimeoutMs,
       ),
-      gitCommands: "git commands",
-      gitCommandRestriction: "git commands",
-      createPrInstruction: "Create PR using gh pr create with a PowerShell here-string to pass the body correctly.",
+      gitCommands: "git 命令",
+      gitCommandRestriction: "git 命令",
+      createPrInstruction: "使用 gh pr create 配合 PowerShell here-string 创建 PR，以正确传递 body。",
       createPrExample: `gh pr create --title "the pr title" --body @'
 ## Summary
 - <1-3 bullet points>
@@ -269,14 +269,14 @@ function profile(name: string, platform: NodeJS.Platform, limits: Limits, defaul
   }
   return {
     intro:
-      "Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.",
+      "在持久的 Shell 会话中执行给定的命令，具有可选的超时设置，确保适当的处理和安全措施。",
     workdirSection:
-      "All commands run in the current working directory by default. Use the `workdir` parameter if you need to run a command in a different directory. AVOID using `cd <directory> && <command>` patterns - use `workdir` instead.",
+      "所有命令默认在当前工作目录中运行。如果你需要在不同目录中运行命令，请使用 `workdir` 参数。避免使用 `cd <目录> && <命令>` 的模式——请改用 `workdir`。",
     commandSection: bashCommandSection(chain, limits, defaultTimeoutMs),
-    gitCommands: "bash commands",
-    gitCommandRestriction: "git bash commands",
-    createPrInstruction:
-      "Create PR using gh pr create with the format below. Use a HEREDOC to pass the body to ensure correct formatting.",
+    gitCommands: "bash 命令",
+    gitCommandRestriction: "git bash 命令",
+      createPrInstruction:
+        "使用 gh pr create 配合以下格式创建 PR。使用 HEREDOC 传递 body 以确保格式正确。",
     createPrExample: `gh pr create --title "the pr title" --body "$(cat <<'EOF'
 ## Summary
 <1-3 bullet points>`,
