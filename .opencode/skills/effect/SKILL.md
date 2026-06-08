@@ -1,6 +1,6 @@
 ---
 name: effect
-description: Work with Effect v4 / effect-smol TypeScript code in this repo
+description: 在此仓库中使用 Effect v4 / effect-smol TypeScript 代码
 ---
 
 # Effect

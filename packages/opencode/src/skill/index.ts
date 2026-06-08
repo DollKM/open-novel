@@ -32,7 +32,7 @@ const SKILL_PATTERN = "**/SKILL.md"
 // actual schemas instead of guesses.
 const CUSTOMIZE_OPENCODE_SKILL_NAME = "customize-opencode"
 const CUSTOMIZE_OPENCODE_SKILL_DESCRIPTION =
-  "Use ONLY when the user is editing or creating opencode's own configuration: opencode.json, opencode.jsonc, files under .opencode/, or files under ~/.config/opencode/. Also use when creating or fixing opencode agents, subagents, skills, plugins, MCP servers, or permission rules. Do not use for the user's own application code, or for any project that is not configuring opencode itself."
+  "仅当用户正在编辑或创建 opencode 自身配置时使用：opencode.json、opencode.jsonc、.opencode/ 下的文件，或 ~/.config/opencode/ 下的文件。创建或修复 opencode 代理、子代理、技能、插件、MCP 服务器或权限规则时也使用此技能。不用于用户的应用程序代码，也不用于任何非配置 opencode 自身的项目。"
 const CUSTOMIZE_OPENCODE_SKILL_BODY = SkillPlugin.CustomizeOpencodeContent
 
 export const Info = Schema.Struct({
