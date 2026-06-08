@@ -7,6 +7,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { pathToFileURL } from "url"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { FSUtil } from "@opencode-ai/core/fs-util"
+import { NonNegativeInt } from "@opencode-ai/core/schema"
 
 const operations = [
   "goToDefinition",
