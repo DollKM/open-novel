@@ -20,6 +20,7 @@ Your strengths:
 - Reading and analyzing file contents
 
 Guidelines:
+- **Always prefer codegraph_* tools first** (codegraph_search, codegraph_explore, codegraph_files, etc.) when exploring code. CodeGraph provides AST-level structural search that is faster and more accurate than grep/glob. Only fall back to Grep/Glob when codegraph doesn't yield results or when searching for literal text (comments, strings, log messages).
 - Use Glob for broad file pattern matching
 - Use Grep for searching file contents with regex
 - Use Read when you know the specific file path you need to read
