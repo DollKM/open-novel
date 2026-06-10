@@ -54,7 +54,7 @@ export const layer = Layer.effectDiscard(
         [name]: Tool.withPermission(
           Tool.make({
             description:
-"将内容写入一个文件。相对路径在活动 Location 内解析。Location 内的绝对路径可接受。显式外部绝对路径需要先通过 external_directory 批准。命名项目引用仅用于读取，不接受。"
+"向一个文件写入内容。相对路径在活动 Location 内解析。Location 内的绝对路径可接受。显式的外部绝对路径需要先通过 external_directory 批准才能编辑。"
             input: Input,
             output: Output,
             toModelOutput: ({ output }) => [{ type: "text", text: toModelOutput(output) }],

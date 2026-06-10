@@ -44,7 +44,7 @@ export const layer = Layer.effectDiscard(
       .register({
         [name]: Tool.make({
           description:
-"按名称模式匹配文件。优先使用 codegraph_files 浏览项目结构（基于 AST 索引，更快）；仅当需要按通配符匹配文件名时使用此工具。在活动 Location 或命名项目引用中按 glob 模式查找文件。返回精简的相对文件资源。使用相对路径缩小搜索范围，使用 limit 限制结果数量。"
+"在活动 Location 内按 glob 模式查找文件。返回精简的相对文件资源。使用相对路径缩小搜索范围，使用 limit 限制结果数量。"
           input: Input,
           output: Output,
           toModelOutput: ({ output }) => [

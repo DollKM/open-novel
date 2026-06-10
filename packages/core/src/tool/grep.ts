@@ -60,7 +60,7 @@ export const layer = Layer.effectDiscard(
       .register({
         [name]: Tool.make({
           description:
-"全文搜索工具。优先使用 codegraph_* 工具进行结构化代码搜索（更精准、更快）；仅当需要搜索字面文本（注释、字符串、日志）或 codegraph 无结果时使用此工具。在活动 Location、命名项目引用或绝对托管工具输出文件中按正则表达式搜索文件内容。使用路径缩小搜索范围，使用 include 按 glob 过滤文件，使用 limit 限制匹配数量。返回精简的文件资源、行号和有限的行预览。"
+"在活动 Location 或绝对路径的托管工具输出文件中按正则表达式搜索文件内容。使用 path 缩小搜索范围，使用 include 按 glob 过滤文件，使用 limit 限制匹配数量。返回精简的文件资源、行号和有限的行预览。"
           input: Input,
           output: Output,
           toModelOutput: ({ output }) => [
