@@ -30,7 +30,7 @@ export const layer = Layer.effectDiscard(
       .register({
         [name]: Tool.make({
           description:
-            "Create and maintain a structured task list for the current coding session. Use it to track progress during multi-step work and keep todo statuses current.",
+            "创建和维护当前编码会话的结构化任务列表。用于跟踪多步骤工作的进度，保持 todo 状态为最新。",
           input: Input,
           output: Output,
           toModelOutput: ({ output }) => [toolText({ type: "text", text: toModelOutput(output) })],

@@ -25,13 +25,13 @@ export const MAX_RESPONSE_BYTES = 256 * 1024
  * from provider-hosted web search tools, which remain route-owned and execute
  * at the model provider. Ownership of this compromise can be revisited later.
  */
-export const description = `Search the web using the session's local web search provider. Use this for current information beyond knowledge cutoff.
+export const description = `使用会话本地搜索提供程序搜索网络，用于获取超出知识截止日期的当前信息。
 
-This is a provider-independent local tool backed by Exa or Parallel. Provider-hosted web search tools are separate and execute at the model provider.
+这是由 Exa 或 Parallel 支持的与提供程序无关的本地工具。模型提供程序托管的搜索工具是独立的，在模型提供程序端执行。
 
-Optional controls support result count, live crawling ('fallback' or 'preferred'), search type ('auto', 'fast', or 'deep'), and maximum context characters.
+可选参数：结果数量、实时爬取（'fallback' 或 'preferred'）、搜索类型（'auto'='均衡'、'fast'='快速结果'、'deep'='全面搜索'）、最大上下文字符数。
 
-The current year is ${new Date().getFullYear()}. Use this year when searching for recent information or current events.`
+当前年份是 ${new Date().getFullYear()}。搜索最近信息或当前事件时请使用此年份。`
 
 export const Input = Schema.Struct({
   query: Schema.String.annotate({ description: "Websearch query" }),

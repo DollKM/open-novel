@@ -14,9 +14,9 @@ export const MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 export const DEFAULT_TIMEOUT_SECONDS = 30
 export const MAX_TIMEOUT_SECONDS = 120
 
-export const description = `Fetch content from an HTTP or HTTPS URL and return it as text, markdown, or HTML. Markdown is the default.
+export const description = `从 HTTP 或 HTTPS URL 获取内容，以文本、markdown 或 HTML 格式返回。默认为 markdown。
 
-Use a more targeted tool when one is available. This tool is read-only. Large text results may be replaced with a preview while the complete output is retained in managed storage.`
+如果有更针对性的工具可用，优先使用该工具。此工具为只读。大文本结果可能被替换为预览，完整输出保留在托管存储中。`
 
 const Timeout = Schema.Number.check(Schema.isGreaterThan(0), Schema.isLessThanOrEqualTo(MAX_TIMEOUT_SECONDS))
 

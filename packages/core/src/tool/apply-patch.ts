@@ -56,7 +56,7 @@ export const layer = Layer.effectDiscard(
         [name]: Tool.withPermission(
           Tool.make({
             description:
-              "Apply one patch containing add, update, and delete file operations. All targets are resolved and approved before target contents are read. Operations apply sequentially; if a later operation fails, earlier operations remain applied and the failure reports them explicitly. Moves and atomic rollback are not supported yet.",
+              "应用一个包含添加、更新和删除文件操作的补丁。所有目标在读取目标内容前统一解析和批准。操作按顺序应用；如果后续操作失败，之前的操作保持已应用状态并明确报告失败项。暂不支持移动和原子回滚。",
             input: Input,
             output: Output,
             toModelOutput: ({ output }) => [toolText({ type: "text", text: toModelOutput(output) })],

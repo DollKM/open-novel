@@ -9,16 +9,16 @@ import { Tools } from "./tools"
 
 export const name = "question"
 
-export const description = `Use this tool when you need to ask the user questions during execution. This allows you to:
-1. Gather user preferences or requirements
-2. Clarify ambiguous instructions
-3. Get decisions on implementation choices as you work
-4. Offer choices to the user about what direction to take.
+export const description = `在执行过程中需要向用户提问时使用此工具。它允许你：
+1. 收集用户偏好或需求
+2. 澄清模糊的指令
+3. 在操作过程中获取实现选择上的决策
+4. 向用户提供方向选择的选项。
 
-Usage notes:
-- When \`custom\` is enabled (default), a "Type your own answer" option is added automatically; don't include "Other" or catch-all options
-- Answers are returned as arrays of labels; set \`multiple: true\` to allow selecting more than one
-- If you recommend a specific option, make that the first option in the list and add "(Recommended)" at the end of the label`
+使用说明：
+- 当启用 \`custom\`（默认）时，会自动添加"输入你自己的答案"选项；不要包含"其他"或全捕获选项
+- 答案以标签数组形式返回；设置 \`multiple: true\` 可允许多选
+- 如果你推荐某个特定选项，将其放在列表的第一个，并在标签末尾添加"（推荐）"`
 
 export const Input = Schema.Struct({
   questions: Schema.Array(QuestionV2.Prompt).annotate({ description: "Questions to ask" }),

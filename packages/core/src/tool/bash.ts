@@ -116,7 +116,7 @@ export const layer = Layer.effectDiscard(
     yield* tools
       .register({
         [name]: Tool.make({
-          description: `Execute one shell command string with the host user's filesystem, process, and network authority. The active Location is the default working directory. Relative workdir values resolve from that Location. External workdir values require external_directory approval; best-effort command-argument path warnings are advisory only. Timeout values are milliseconds (default: ${DEFAULT_TIMEOUT_MS}; maximum: ${MAX_TIMEOUT_MS}). Uses the configured shell when set; otherwise uses /bin/sh on POSIX and COMSPEC or cmd.exe on Windows.`,
+          description: `使用宿主的文件系统、进程和网络权限执行一条 shell 命令。活动 Location 是默认的工作目录。相对路径的 workdir 值从该 Location 解析。外部 workdir 值需要 external_directory 批准。timeout 单位为毫秒（默认 ${DEFAULT_TIMEOUT_MS}；最大 ${MAX_TIMEOUT_MS}）。使用已配置的 shell；未配置时 POSIX 使用 /bin/sh，Windows 使用 COMSPEC 或 cmd.exe。`,
           input: Input,
           output: Output,
           toModelOutput: ({ output }) => [toolText({ type: "text", text: modelOutput(output) })],

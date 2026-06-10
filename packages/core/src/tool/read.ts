@@ -33,7 +33,7 @@ export const layer = Layer.effectDiscard(
       .register({
         [name]: Tool.make({
           description:
-            "Read a text file or supported image, page through a large UTF-8 text file by line offset, or list a directory page relative to the current location. Absolute paths are accepted only for managed tool-output files.",
+            "读取文本文件或受支持的图像、按行偏移翻阅大型 UTF-8 文本文件、或列出当前目录页。仅托管工具输出文件接受绝对路径。",
           input: Input,
           output: Output,
           toModelOutput: ({ input, output }) => {

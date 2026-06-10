@@ -100,7 +100,7 @@ export const layer = Layer.effectDiscard(
         [name]: Tool.withPermission(
           Tool.make({
             description:
-              "Replace exact text in one file. Relative paths resolve within the active Location. Absolute paths inside the Location are accepted. Explicit external absolute paths require external_directory approval before edit approval. Named project references are read-oriented and are not accepted.",
+              "在一个文件中精确替换文本。相对路径在活动 Location 内解析。Location 内的绝对路径可接受。显式外部绝对路径需要先通过 external_directory 批准。命名项目引用仅用于读取，不接受。",
             input: Input,
             output: Output,
             toModelOutput: ({ input, output }) => [
