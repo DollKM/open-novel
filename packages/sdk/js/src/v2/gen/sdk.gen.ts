@@ -176,8 +176,6 @@ import type {
   QuestionReplyErrors,
   QuestionReplyResponses,
   QuestionV2Reply,
-  ReferenceListErrors,
-  ReferenceListResponses,
   SessionAbortErrors,
   SessionAbortResponses,
   SessionChildrenErrors,
@@ -272,6 +270,8 @@ import type {
   V2CommandListResponses,
   V2EventSubscribeErrors,
   V2EventSubscribeResponses,
+  V2FsFindErrors,
+  V2FsFindResponses,
   V2FsListErrors,
   V2FsListResponses,
   V2FsReadErrors,
@@ -292,6 +292,8 @@ import type {
   V2ProviderListResponses,
   V2QuestionRequestListErrors,
   V2QuestionRequestListResponses,
+  V2ReferenceListErrors,
+  V2ReferenceListResponses,
   V2SessionCompactErrors,
   V2SessionCompactResponses,
   V2SessionContextErrors,
@@ -3402,38 +3404,6 @@ export class Provider extends HeyApiClient {
   }
 }
 
-export class Reference extends HeyApiClient {
-  /**
-   * List configured references
-   *
-   * List configured references resolved in the current workspace.
-   */
-  public list<ThrowOnError extends boolean = false>(
-    parameters?: {
-      directory?: string
-      workspace?: string
-    },
-    options?: Options<never, ThrowOnError>,
-  ) {
-    const params = buildClientParams(
-      [parameters],
-      [
-        {
-          args: [
-            { in: "query", key: "directory" },
-            { in: "query", key: "workspace" },
-          ],
-        },
-      ],
-    )
-    return (options?.client ?? this.client).get<ReferenceListResponses, ReferenceListErrors, ThrowOnError>({
-      url: "/reference",
-      ...options,
-      ...params,
-    })
-  }
-}
-
 export class Session2 extends HeyApiClient {
   /**
    * List sessions
@@ -5647,7 +5617,6 @@ export class Fs extends HeyApiClient {
         workspace?: string
       }
       path: string
-      reference?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -5658,7 +5627,6 @@ export class Fs extends HeyApiClient {
           args: [
             { in: "query", key: "location" },
             { in: "query", key: "path" },
-            { in: "query", key: "reference" },
           ],
         },
       ],
@@ -5682,7 +5650,6 @@ export class Fs extends HeyApiClient {
         workspace?: string
       }
       path?: string
-      reference?: string
     },
     options?: Options<never, ThrowOnError>,
   ) {
@@ -5693,13 +5660,49 @@ export class Fs extends HeyApiClient {
           args: [
             { in: "query", key: "location" },
             { in: "query", key: "path" },
-            { in: "query", key: "reference" },
           ],
         },
       ],
     )
     return (options?.client ?? this.client).get<V2FsListResponses, V2FsListErrors, ThrowOnError>({
       url: "/api/fs/list",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Find files
+   *
+   * Find recursively ranked filesystem entries relative to the requested location.
+   */
+  public find<ThrowOnError extends boolean = false>(
+    parameters: {
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+      query: string
+      type?: "file" | "directory"
+      limit?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "location" },
+            { in: "query", key: "query" },
+            { in: "query", key: "type" },
+            { in: "query", key: "limit" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<V2FsFindResponses, V2FsFindErrors, ThrowOnError>({
+      url: "/api/fs/find",
       ...options,
       ...params,
     })
@@ -5813,6 +5816,30 @@ export class Question3 extends HeyApiClient {
   }
 }
 
+export class Reference extends HeyApiClient {
+  /**
+   * List references
+   *
+   * List references available in the requested location.
+   */
+  public list<ThrowOnError extends boolean = false>(
+    parameters?: {
+      location?: {
+        directory?: string
+        workspace?: string
+      }
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams([parameters], [{ args: [{ in: "query", key: "location" }] }])
+    return (options?.client ?? this.client).get<V2ReferenceListResponses, V2ReferenceListErrors, ThrowOnError>({
+      url: "/api/reference",
+      ...options,
+      ...params,
+    })
+  }
+}
+
 export class V2 extends HeyApiClient {
   private _health?: Health
   get health(): Health {
@@ -5867,6 +5894,11 @@ export class V2 extends HeyApiClient {
   private _question?: Question3
   get question(): Question3 {
     return (this._question ??= new Question3({ client: this.client }))
+  }
+
+  private _reference?: Reference
+  get reference(): Reference {
+    return (this._reference ??= new Reference({ client: this.client }))
   }
 }
 
@@ -5986,11 +6018,6 @@ export class OpencodeClient extends HeyApiClient {
   private _provider?: Provider
   get provider(): Provider {
     return (this._provider ??= new Provider({ client: this.client }))
-  }
-
-  private _reference?: Reference
-  get reference(): Reference {
-    return (this._reference ??= new Reference({ client: this.client }))
   }
 
   private _session?: Session2

@@ -1,6 +1,6 @@
 export * as ApplyPatchTool from "./apply-patch"
 
-import { ToolFailure, toolText } from "@opencode-ai/llm"
+import { ToolFailure } from "@opencode-ai/llm"
 import { Effect, Layer, Schema } from "effect"
 import { FileMutation } from "../file-mutation"
 import { FSUtil } from "../fs-util"
@@ -59,7 +59,7 @@ export const layer = Layer.effectDiscard(
               "应用一个包含添加、更新和删除文件操作的补丁。所有目标在读取目标内容前统一解析和批准。操作按顺序应用；如果后续操作失败，之前的操作保持已应用状态并明确报告失败项。暂不支持移动和原子回滚。",
             input: Input,
             output: Output,
-            toModelOutput: ({ output }) => [toolText({ type: "text", text: toModelOutput(output) })],
+            toModelOutput: ({ output }) => [{ type: "text", text: toModelOutput(output) }],
             execute: (input, context) => {
               const applied: Array<typeof Applied.Type> = []
               const fail = (path: string) => {

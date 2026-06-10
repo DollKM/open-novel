@@ -1,6 +1,6 @@
 export * as TodoWriteTool from "./todowrite"
 
-import { ToolFailure, toolText } from "@opencode-ai/llm"
+import { ToolFailure } from "@opencode-ai/llm"
 import { Effect, Layer, Schema } from "effect"
 import { PermissionV2 } from "../permission"
 import { SessionTodo } from "../session/todo"
@@ -33,7 +33,7 @@ export const layer = Layer.effectDiscard(
             "创建和维护当前编码会话的结构化任务列表。用于跟踪多步骤工作的进度，保持 todo 状态为最新。",
           input: Input,
           output: Output,
-          toModelOutput: ({ output }) => [toolText({ type: "text", text: toModelOutput(output) })],
+          toModelOutput: ({ output }) => [{ type: "text", text: toModelOutput(output) }],
           execute: (input, context) =>
             Effect.gen(function* () {
               yield* permission.assert({

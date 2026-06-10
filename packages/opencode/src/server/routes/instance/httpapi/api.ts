@@ -28,8 +28,6 @@ import { WorkspaceApi } from "./groups/workspace"
 import { Authorization } from "./middleware/authorization"
 import { SchemaErrorMiddleware } from "./middleware/schema-error"
 
-// GlobalEventSchema snapshots the registry after event-producing groups register their variants.
-
 const EventSchema = Schema.Union([
   ...EventV2.registry
     .values()

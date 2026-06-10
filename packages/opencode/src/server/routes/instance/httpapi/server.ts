@@ -16,8 +16,8 @@ import { Auth } from "@/auth"
 import { BackgroundJob } from "@/background/job"
 import { Config } from "@/config/config"
 import { Command } from "@/command"
-import * as Observability from "@opencode-ai/core/effect/observability"
-import { Ripgrep } from "@opencode-ai/core/filesystem/ripgrep"
+import * as Observability from "@opencode-ai/core/observability"
+import { Ripgrep } from "@opencode-ai/core/ripgrep"
 import { Git } from "@/git"
 import { Format } from "@/format"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -36,7 +36,6 @@ import { ModelsDev } from "@opencode-ai/core/models-dev"
 import { Provider } from "@/provider/provider"
 import { PtyTicket } from "@opencode-ai/core/pty/ticket"
 import { Question } from "@/question"
-import { Reference } from "@/reference/reference"
 import { Session } from "@/session/session"
 import { SessionCompaction } from "@/session/compaction"
 import { LLM } from "@/session/llm"
@@ -89,7 +88,6 @@ import { projectCopyHandlers } from "./handlers/project-copy"
 import { providerHandlers } from "./handlers/provider"
 import { ptyConnectHandlers, ptyHandlers } from "./handlers/pty"
 import { questionHandlers } from "./handlers/question"
-import { referenceHandlers } from "./handlers/reference"
 import { sessionHandlers } from "./handlers/session"
 import { syncHandlers } from "./handlers/sync"
 import { tuiHandlers } from "./handlers/tui"
@@ -153,7 +151,6 @@ const instanceApiRoutes = HttpApiBuilder.layer(InstanceHttpApi).pipe(
     projectCopyHandlers,
     ptyHandlers,
     questionHandlers,
-    referenceHandlers,
     permissionHandlers,
     providerHandlers,
     sessionHandlers,
@@ -243,8 +240,6 @@ export function createRoutes(
       Provider.defaultLayer,
       PtyTicket.defaultLayer,
       Question.defaultLayer,
-      Reference.defaultLayer,
-      Ripgrep.defaultLayer,
       RuntimeFlags.defaultLayer,
       Session.defaultLayer,
       SessionCompaction.defaultLayer,
@@ -269,8 +264,9 @@ export function createRoutes(
       HttpServer.layerServices,
     ]),
     Layer.provide(Layer.succeed(CorsConfig)(corsOptions)),
+    Layer.provideMerge(Ripgrep.defaultLayer),
     Layer.provide(InstanceLayer.layer),
-    Layer.provide(Observability.layer),
+    Layer.provideMerge(Observability.layer),
   )
 }
 

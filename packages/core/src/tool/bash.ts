@@ -1,7 +1,7 @@
 export * as BashTool from "./bash"
 
 import path from "path"
-import { ToolFailure, toolText } from "@opencode-ai/llm"
+import { ToolFailure } from "@opencode-ai/llm"
 import { Duration, Effect, Layer, Schema } from "effect"
 import { ChildProcess } from "effect/unstable/process"
 import { Config } from "../config"
@@ -119,7 +119,7 @@ export const layer = Layer.effectDiscard(
           description: `使用宿主的文件系统、进程和网络权限执行一条 shell 命令。活动 Location 是默认的工作目录。相对路径的 workdir 值从该 Location 解析。外部 workdir 值需要 external_directory 批准。timeout 单位为毫秒（默认 ${DEFAULT_TIMEOUT_MS}；最大 ${MAX_TIMEOUT_MS}）。使用已配置的 shell；未配置时 POSIX 使用 /bin/sh，Windows 使用 COMSPEC 或 cmd.exe。`,
           input: Input,
           output: Output,
-          toModelOutput: ({ output }) => [toolText({ type: "text", text: modelOutput(output) })],
+          toModelOutput: ({ output }) => [{ type: "text", text: modelOutput(output) }],
           execute: (input, context) =>
             Effect.gen(function* () {
               const source = {
