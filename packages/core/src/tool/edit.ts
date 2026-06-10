@@ -99,7 +99,7 @@ export const layer = Layer.effectDiscard(
         [name]: Tool.withPermission(
           Tool.make({
             description:
-"精确替换一个文件中的文本。相对路径在活动 Location 内解析。Location 内的绝对路径可接受。显式的外部绝对路径需要先通过 external_directory 批准才能编辑。"
+"精确替换一个文件中的文本。相对路径在活动 Location 内解析。Location 内的绝对路径可接受。显式的外部绝对路径需要先通过 external_directory 批准才能编辑。",
             input: Input,
             output: Output,
             toModelOutput: ({ input, output }) => [
