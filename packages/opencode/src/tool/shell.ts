@@ -619,6 +619,13 @@ export const ShellTool = Tool.define(
           parameters: prompt.parameters,
           execute: (params: Parameters, ctx: Tool.Context) =>
             Effect.gen(function* () {
+              if (/Set-Content/i.test(params.command)) {
+                return {
+                  title: params.description,
+                  metadata: {},
+                  output: "Bash 中禁止使用 Set-Content 写入文件，请使用 Write 工具。",
+                }
+              }
               const instanceCtx = yield* InstanceState.context
               const cwd = params.workdir
                 ? yield* resolvePath(params.workdir, instanceCtx.directory, shell)
