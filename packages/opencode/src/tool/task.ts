@@ -93,15 +93,6 @@ export const TaskTool = Tool.define(
       params: Schema.Schema.Type<typeof Parameters>,
       ctx: Tool.Context,
     ) {
-      const disableTask = true
-      if (disableTask) {
-        return {
-          title: params.description,
-          metadata: {},
-          output: "该工具已被禁用",
-        }
-      }
-
       const cfg = yield* config.get()
       const runInBackground = params.background === true
       if (runInBackground && !flags.experimentalBackgroundSubagents) {
