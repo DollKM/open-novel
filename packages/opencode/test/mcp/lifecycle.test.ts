@@ -1,4 +1,5 @@
 import { expect, mock, beforeEach } from "bun:test"
+import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js"
 import { Cause, Effect, Exit } from "effect"
 import type { MCP as MCPNS } from "../../src/mcp/index"
 import { testEffect } from "../lib/effect"
@@ -13,6 +14,8 @@ interface MockClientState {
   listToolsCalls: number
   listPromptsCalls: number
   listResourcesCalls: number
+  getPromptTimeout?: number
+  readResourceTimeout?: number
   requestCalls: number
   listToolsShouldFail: boolean
   listToolsError: string
@@ -206,6 +209,16 @@ void mock.module("@modelcontextprotocol/sdk/client/index.js", () => ({
       return { resources: this._state?.resources ?? [] }
     }
 
+    async getPrompt(_params: unknown, options?: { timeout?: number }) {
+      if (this._state) this._state.getPromptTimeout = options?.timeout
+      return { messages: [] }
+    }
+
+    async readResource(params: { uri: string }, options?: { timeout?: number }) {
+      if (this._state) this._state.readResourceTimeout = options?.timeout
+      return { contents: [{ uri: params.uri, text: "test" }] }
+    }
+
     async close() {
       if (this._state) this._state.closed = true
     }
@@ -382,7 +395,7 @@ it.instance(
           { name: "next_tool", description: "next", inputSchema: { type: "object", properties: {} } },
         ]
 
-        const handler = Array.from(serverState.notificationHandlers.values())[0]
+        const handler = serverState.notificationHandlers.get(ToolListChangedNotificationSchema)
         expect(handler).toBeDefined()
         yield* Effect.promise(() => handler?.())
 
@@ -756,6 +769,29 @@ it.instance(
       },
     },
   },
+)
+
+it.instance(
+  "uses per-server timeouts for prompt and resource requests",
+  () =>
+    MCP.Service.use((mcp: MCPNS.Interface) =>
+      Effect.gen(function* () {
+        lastCreatedClientName = "timeout-server"
+        const serverState = getOrCreateClientState("timeout-server")
+
+        yield* mcp.add("timeout-server", {
+          type: "local",
+          command: ["echo", "test"],
+          timeout: 2500,
+        })
+        yield* mcp.getPrompt("timeout-server", "test")
+        yield* mcp.readResource("timeout-server", "test://resource")
+
+        expect(serverState.getPromptTimeout).toBe(2500)
+        expect(serverState.readResourceTimeout).toBe(2500)
+      }),
+    ),
+  { config: { mcp: {}, experimental: { mcp_timeout: 5000 } } },
 )
 
 it.instance(
