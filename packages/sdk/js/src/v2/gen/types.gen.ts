@@ -406,6 +406,7 @@ export type SubtaskPart = {
     modelID: string
   }
   command?: string
+  files?: FilePart[]
 }
 
 export type ReasoningPart = {
@@ -2653,6 +2654,7 @@ export type SubtaskPartInput = {
     modelID: string
   }
   command?: string
+  files?: FilePartInput[]
 }
 
 export type SessionBusyError = {

@@ -208,6 +208,7 @@ export const SubtaskPart = Schema.Struct({
     }),
   ),
   command: Schema.optional(Schema.String),
+  files: Schema.optional(Schema.Array(FilePart)),
 }).annotate({ identifier: "SubtaskPart" })
 export type SubtaskPart = Types.DeepMutable<Schema.Schema.Type<typeof SubtaskPart>>
 
@@ -449,6 +450,7 @@ export const SubtaskPartInput = Schema.Struct({
     }),
   ),
   command: Schema.optional(Schema.String),
+  files: Schema.optional(Schema.Array(FilePartInput)),
 }).annotate({ identifier: "SubtaskPartInput" })
 export type SubtaskPartInput = Types.DeepMutable<Schema.Schema.Type<typeof SubtaskPartInput>>
 

@@ -185,6 +185,15 @@ export const TaskTool = Tool.define(
 
       const runTask = Effect.fn("TaskTool.runTask")(function* () {
         const parts = yield* ops.resolvePromptParts(params.prompt)
+        const extraFiles: SessionV1.FilePartInput[] = Array.isArray(ctx.extra?.files)
+          ? ctx.extra.files.map((f: SessionV1.FilePart) => ({
+              type: "file" as const,
+              mime: f.mime,
+              url: f.url,
+              filename: f.filename,
+              source: f.source,
+            }))
+          : []
         const result = yield* ops.prompt({
           messageID: MessageID.ascending(),
           sessionID: nextSession.id,
@@ -194,7 +203,7 @@ export const TaskTool = Tool.define(
           },
           variant: next.model ? undefined : variant,
           agent: next.name,
-          parts,
+          parts: [...parts, ...extraFiles],
         })
         return result.parts.findLast((item) => item.type === "text")?.text ?? ""
       })

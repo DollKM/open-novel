@@ -312,7 +312,7 @@ export const layer = Layer.effect(
           sessionID,
           abort: taskAbort.signal,
           callID: part.callID,
-          extra: { bypassAgentCheck: true, promptOps },
+          extra: { bypassAgentCheck: true, promptOps, ...(task.files ? { files: task.files } : {}) },
           messages: msgs,
           metadata: (val: { title?: string; metadata?: Record<string, any> }) =>
             Effect.gen(function* () {
@@ -1102,12 +1102,52 @@ export const layer = Layer.effect(
       return { info, parts }
     }, Effect.scoped)
 
+    const injectImageSubtask = Effect.fnUntraced(function* (input: PromptInput) {
+      const imageIndexes: number[] = []
+      const textParts: string[] = []
+      for (const [i, p] of input.parts.entries()) {
+        if (p.type === "text") textParts.push(p.text)
+        if (p.type === "file" && p.mime.startsWith("image/")) imageIndexes.push(i)
+      }
+      if (imageIndexes.length === 0) return input
+      const ag = yield* Effect.gen(function* () {
+        if (input.agent) return yield* agents.get(input.agent).pipe(Effect.option)
+        const def = yield* agents.defaultInfo()
+        return Option.some(def)
+      })
+      if (Option.isNone(ag)) return input
+      const modelRef = input.model ?? ag.value.model ?? (yield* currentModel(input.sessionID))
+      const fullModel = yield* provider.getModel(modelRef.providerID, modelRef.modelID).pipe(Effect.option)
+      const cfg = yield* config.get()
+      if (Option.isNone(fullModel) || fullModel.value.capabilities.input.image || !cfg.image_analysis) return input
+      return {
+        ...input,
+        parts: [
+          {
+            type: "subtask",
+            prompt: textParts.join("\n") || "Analyze the attached images.",
+            description: "图片分析",
+            agent: ag.value.name,
+            model: {
+              providerID: cfg.image_analysis.model.provider,
+              modelID: cfg.image_analysis.model.id,
+            },
+            files: imageIndexes.map((i) => {
+              const p = input.parts[i] as { type: "file"; mime: string; url: string; filename?: string; id?: string }
+              return { type: "file", mime: p.mime, url: p.url, filename: p.filename, id: p.id }
+            }),
+          },
+          ...input.parts.filter((_, i) => !imageIndexes.includes(i)),
+        ],
+      } as unknown as PromptInput
+    })
+
     const prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, Image.Error> = Effect.fn(
       "SessionPrompt.prompt",
     )(function* (input: PromptInput) {
       const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
       yield* revert.cleanup(session)
-      const message = yield* createUserMessage(input)
+      const message = yield* createUserMessage(yield* injectImageSubtask(input))
       yield* sessions.touch(input.sessionID)
 
       const permissions: PermissionV1.Rule[] = []
