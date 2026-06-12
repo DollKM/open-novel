@@ -36,65 +36,67 @@ export const layer = Layer.effect(
     const state = yield* SessionRunState.Service
 
     const revert = Effect.fn("SessionRevert.revert")(function* (input: RevertInput) {
-      yield* state.assertNotBusy(input.sessionID)
-      const all = yield* sessions.messages({ sessionID: input.sessionID }).pipe(Effect.orDie)
-      let lastUser: SessionV1.User | undefined
-      const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+      return yield* state.runExclusive(input.sessionID, Effect.gen(function* () {
+        const all = yield* sessions.messages({ sessionID: input.sessionID }).pipe(Effect.orDie)
+        let lastUser: SessionV1.User | undefined
+        const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
 
-      let rev: Session.Info["revert"]
-      const patches: Snapshot.Patch[] = []
-      for (const msg of all) {
-        if (msg.info.role === "user") lastUser = msg.info
-        const remaining = []
-        for (const part of msg.parts) {
-          if (rev) {
-            if (part.type === "patch") patches.push(part)
-            continue
-          }
-
-          if (!rev) {
-            if ((msg.info.id === input.messageID && !input.partID) || part.id === input.partID) {
-              const partID = remaining.some((item) => ["text", "tool"].includes(item.type)) ? input.partID : undefined
-              rev = {
-                messageID: !partID && lastUser ? lastUser.id : msg.info.id,
-                partID,
-              }
+        let rev: Session.Info["revert"]
+        const patches: Snapshot.Patch[] = []
+        for (const msg of all) {
+          if (msg.info.role === "user") lastUser = msg.info
+          const remaining = []
+          for (const part of msg.parts) {
+            if (rev) {
+              if (part.type === "patch") patches.push(part)
+              continue
             }
-            remaining.push(part)
+
+            if (!rev) {
+              if ((msg.info.id === input.messageID && !input.partID) || part.id === input.partID) {
+                const partID = remaining.some((item) => ["text", "tool"].includes(item.type)) ? input.partID : undefined
+                rev = {
+                  messageID: !partID && lastUser ? lastUser.id : msg.info.id,
+                  partID,
+                }
+              }
+              remaining.push(part)
+            }
           }
         }
-      }
 
-      if (!rev) return session
+        if (!rev) return session
 
-      rev.snapshot = session.revert?.snapshot ?? (yield* snap.track())
-      if (session.revert?.snapshot) yield* snap.restore(session.revert.snapshot)
-      yield* snap.revert(patches)
-      if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot)
-      const range = all.filter((msg) => msg.info.id >= rev.messageID)
-      const diffs = yield* summary.computeDiff({ messages: range })
-      yield* storage.write(["session_diff", input.sessionID], diffs).pipe(Effect.ignore)
-      yield* events.publish(Session.Event.Diff, { sessionID: input.sessionID, diff: diffs })
-      yield* sessions.setRevert({
-        sessionID: input.sessionID,
-        revert: rev,
-        summary: {
-          additions: diffs.reduce((sum, x) => sum + x.additions, 0),
-          deletions: diffs.reduce((sum, x) => sum + x.deletions, 0),
-          files: diffs.length,
-        },
-      })
-      return yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+        rev.snapshot = session.revert?.snapshot ?? (yield* snap.track())
+        if (session.revert?.snapshot) yield* snap.restore(session.revert.snapshot)
+        yield* snap.revert(patches)
+        if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot)
+        const range = all.filter((msg) => msg.info.id >= rev.messageID)
+        const diffs = yield* summary.computeDiff({ messages: range })
+        yield* storage.write(["session_diff", input.sessionID], diffs).pipe(Effect.ignore)
+        yield* events.publish(Session.Event.Diff, { sessionID: input.sessionID, diff: diffs })
+        yield* sessions.setRevert({
+          sessionID: input.sessionID,
+          revert: rev,
+          summary: {
+            additions: diffs.reduce((sum, x) => sum + x.additions, 0),
+            deletions: diffs.reduce((sum, x) => sum + x.deletions, 0),
+            files: diffs.length,
+          },
+        })
+        return yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+      }))
     })
 
     const unrevert = Effect.fn("SessionRevert.unrevert")(function* (input: { sessionID: SessionID }) {
-      yield* Effect.logInfo("unreverting", { sessionID: input.sessionID })
-      yield* state.assertNotBusy(input.sessionID)
-      const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
-      if (!session.revert) return session
-      if (session.revert.snapshot) yield* snap.restore(session.revert.snapshot)
-      yield* sessions.clearRevert(input.sessionID)
-      return yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+      return yield* state.runExclusive(input.sessionID, Effect.gen(function* () {
+        yield* Effect.logInfo("unreverting", { sessionID: input.sessionID })
+        const session = yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+        if (!session.revert) return session
+        if (session.revert.snapshot) yield* snap.restore(session.revert.snapshot)
+        yield* sessions.clearRevert(input.sessionID)
+        return yield* sessions.get(input.sessionID).pipe(Effect.orDie)
+      }))
     })
 
     const cleanup = Effect.fn("SessionRevert.cleanup")(function* (session: Session.Info) {

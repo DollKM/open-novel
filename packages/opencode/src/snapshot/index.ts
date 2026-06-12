@@ -437,8 +437,7 @@ export const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Serv
                   })
                   return
                 }
-                yield* Effect.logInfo("file did not exist in snapshot, deleting", { file: op.file, hash: op.hash })
-                yield* remove(op.file)
+                yield* Effect.logInfo("file did not exist in snapshot, skipping", { file: op.file, hash: op.hash })
               })
 
               const clash = (a: string, b: string) => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`)
@@ -512,8 +511,7 @@ export const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Serv
 
                 for (const op of run) {
                   if (have.has(op.rel)) continue
-                  yield* Effect.logInfo("file did not exist in snapshot, deleting", { file: op.file, hash: op.hash })
-                  yield* remove(op.file)
+                  yield* Effect.logInfo("file did not exist in snapshot, skipping", { file: op.file, hash: op.hash })
                 }
 
                 i = j

@@ -3,7 +3,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { SessionV1 } from "@opencode-ai/core/v1/session"
 import { Runner } from "@/effect/runner"
 import { BackgroundJob } from "@/background/job"
-import { Effect, Latch, Layer, Scope, Context } from "effect"
+import { Effect, Latch, Layer, Scope, Context, Semaphore } from "effect"
 import { Session } from "./session"
 import { SessionID } from "./schema"
 import { SessionStatus } from "./status"
@@ -22,6 +22,10 @@ export interface Interface {
     work: Effect.Effect<SessionV1.WithParts>,
     ready?: Latch.Latch,
   ) => Effect.Effect<SessionV1.WithParts, Session.BusyError>
+  readonly runExclusive: <A, E>(
+    sessionID: SessionID,
+    work: Effect.Effect<A, E>,
+  ) => Effect.Effect<A, E>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SessionRunState") {}
@@ -36,6 +40,7 @@ export const layer = Layer.effect(
       Effect.fn("SessionRunState.state")(function* () {
         const scope = yield* Scope.Scope
         const runners = new Map<SessionID, Runner.Runner<SessionV1.WithParts>>()
+        const locks = new Map<SessionID, Semaphore.Semaphore>()
         yield* Effect.addFinalizer(
           Effect.fnUntraced(function* () {
             yield* Effect.forEach(runners.values(), (runner) => runner.cancel, {
@@ -43,9 +48,10 @@ export const layer = Layer.effect(
               discard: true,
             })
             runners.clear()
+            locks.clear()
           }),
         )
-        return { runners, scope }
+        return { runners, scope, locks }
       }),
     )
 
@@ -104,7 +110,20 @@ export const layer = Layer.effect(
         .pipe(Effect.catchTag("RunnerBusy", () => Effect.fail(busyError(sessionID))))
     })
 
-    return Service.of({ assertNotBusy, cancel, ensureRunning, startShell })
+    const runExclusive = Effect.fn("SessionRunState.runExclusive")(function* <A, E>(
+      sessionID: SessionID,
+      work: Effect.Effect<A, E>,
+    ) {
+      const data = yield* InstanceState.get(state)
+      let lock = data.locks.get(sessionID)
+      if (!lock) {
+        lock = Semaphore.makeUnsafe(1)
+        data.locks.set(sessionID, lock)
+      }
+      return yield* lock.withPermits(1)(work)
+    })
+
+    return Service.of({ assertNotBusy, cancel, ensureRunning, startShell, runExclusive })
   }),
 )
 
