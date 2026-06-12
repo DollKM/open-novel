@@ -15,6 +15,7 @@ import { ConfigPermissionV1 } from "./permission"
 import { ConfigPluginV1 } from "./plugin"
 import { ConfigProviderV1 } from "./provider"
 import { ConfigServerV1 } from "./server"
+import { ConfigImageAnalysisV1 } from "./image-analysis"
 import { ConfigSkillsV1 } from "./skills"
 
 export type Layout = ConfigLayoutV1.Layout
@@ -123,6 +124,9 @@ export const Info = Schema.Struct({
   tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
   attachment: Schema.optional(ConfigAttachmentV1.Info).annotate({
     description: "Attachment processing configuration, including image size limits and resizing behavior",
+  }),
+  image_analysis: Schema.optional(ConfigImageAnalysisV1.Info).annotate({
+    description: "Image analysis configuration for routing images to a multimodal model when the primary model does not support images",
   }),
   enterprise: Schema.optional(
     Schema.Struct({ url: Schema.optional(Schema.String).annotate({ description: "Enterprise URL" }) }),
