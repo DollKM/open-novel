@@ -296,7 +296,7 @@ export function createRoutes(
       Plugin.defaultLayer,
       Project.defaultLayer,
       ProjectV2.defaultLayer,
-      ProjectCopy.defaultLayer,
+
       MoveSession.defaultLayer,
       HttpServer.layerServices,
     ]),
