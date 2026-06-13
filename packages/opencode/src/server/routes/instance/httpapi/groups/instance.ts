@@ -4,6 +4,7 @@ import { Format } from "@/format"
 import { LSP } from "@/lsp/lsp"
 import { Vcs } from "@/project/vcs"
 import { Skill } from "@/skill"
+import { Workflow } from "@/workflow"
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import { Authorization } from "../middleware/authorization"
@@ -44,6 +45,11 @@ export class ApiVcsApplyError extends Schema.ErrorClass<ApiVcsApplyError>("VcsAp
 const SkillNameParam = Schema.Struct({ name: Schema.String })
 const SkillDeletePayload = Schema.Struct({ success: Schema.Boolean })
 
+const WorkflowContentQuery = Schema.Struct({
+  ...WorkspaceRoutingQueryFields,
+  path: Schema.String,
+})
+
 export const InstancePaths = {
   dispose: "/instance/dispose",
   path: "/path",
@@ -58,6 +64,8 @@ export const InstancePaths = {
   skillDelete: "/skill/:name",
   lsp: "/lsp",
   formatter: "/formatter",
+  workflow: "/workflow",
+  workflowContent: "/workflow/content",
 } as const
 
 export const InstanceApi = HttpApi.make("instance")
@@ -201,6 +209,27 @@ export const InstanceApi = HttpApi.make("instance")
             identifier: "formatter.status",
             summary: "Get formatter status",
             description: "Get formatter status",
+          }),
+        ),
+        HttpApiEndpoint.get("workflow", InstancePaths.workflow, {
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Array(Workflow.Info), "List of workflows"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "app.workflows",
+            summary: "List workflows",
+            description: "List all available workflows from .opencode/workflows/ directories.",
+          }),
+        ),
+        HttpApiEndpoint.get("workflowContent", InstancePaths.workflowContent, {
+          query: WorkflowContentQuery,
+          success: described(Workflow.Detail, "Workflow detail"),
+          error: ApiNotFoundError,
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "app.workflow.content",
+            summary: "Get workflow content",
+            description: "Get a single workflow's content by its relative path.",
           }),
         ),
       )

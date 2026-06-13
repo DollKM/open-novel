@@ -603,6 +603,68 @@ export class App extends HeyApiClient {
       ...params,
     })
   }
+
+  /**
+   * List workflows
+   *
+   * List all available workflows from .opencode/workflows/ directories.
+   */
+  public workflows<ThrowOnError extends boolean = false>(
+    parameters?: {
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<AppWorkflowsResponses, AppWorkflowsErrors, ThrowOnError>({
+      url: "/workflow",
+      ...options,
+      ...params,
+    })
+  }
+
+  /**
+   * Get workflow content
+   *
+   * Get a single workflow's content by its relative path.
+   */
+  public workflowContent<ThrowOnError extends boolean = false>(
+    parameters: {
+      path: string
+      directory?: string
+      workspace?: string
+    },
+    options?: Options<never, ThrowOnError>,
+  ) {
+    const params = buildClientParams(
+      [parameters],
+      [
+        {
+          args: [
+            { in: "query", key: "path" },
+            { in: "query", key: "directory" },
+            { in: "query", key: "workspace" },
+          ],
+        },
+      ],
+    )
+    return (options?.client ?? this.client).get<AppWorkflowContentResponses, AppWorkflowContentErrors, ThrowOnError>({
+      url: "/workflow/content",
+      ...options,
+      ...params,
+    })
+  }
 }
 
 export class ControlPlane extends HeyApiClient {

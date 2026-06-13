@@ -6543,6 +6543,74 @@ export type AppSkillDeleteResponses = {
 
 export type AppSkillDeleteResponse = AppSkillDeleteResponses[keyof AppSkillDeleteResponses]
 
+export type AppWorkflowsData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/workflow"
+}
+
+export type AppWorkflowsErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type AppWorkflowsError = AppWorkflowsErrors[keyof AppWorkflowsErrors]
+
+export type AppWorkflowsResponses = {
+  /**
+   * List of workflows
+   */
+  200: Array<{
+    path: string
+    name: string
+    category: string
+    description?: string
+  }>
+}
+
+export type AppWorkflowsResponse = AppWorkflowsResponses[keyof AppWorkflowsResponses]
+
+export type AppWorkflowContentData = {
+  body?: never
+  path?: never
+  query: {
+    path: string
+    directory?: string
+    workspace?: string
+  }
+  url: "/workflow/content"
+}
+
+export type AppWorkflowContentErrors = {
+  /**
+   * Not found
+   */
+  404: NotFoundError
+}
+
+export type AppWorkflowContentError = AppWorkflowContentErrors[keyof AppWorkflowContentErrors]
+
+export type AppWorkflowContentResponses = {
+  /**
+   * Workflow detail
+   */
+  200: {
+    path: string
+    name: string
+    category: string
+    description?: string
+    content: string
+  }
+}
+
+export type AppWorkflowContentResponse = AppWorkflowContentResponses[keyof AppWorkflowContentResponses]
+
 export type LspStatusData = {
   body?: never
   path?: never

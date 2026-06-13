@@ -1,3 +1,4 @@
+import path from "path"
 import { Agent } from "@/agent/agent"
 import { Command } from "@/command"
 import * as InstanceState from "@/effect/instance-state"
@@ -6,6 +7,9 @@ import { Global } from "@opencode-ai/core/global"
 import { LSP } from "@/lsp/lsp"
 import { Vcs } from "@/project/vcs"
 import { Skill } from "@/skill"
+import { Workflow } from "@/workflow"
+import { Config } from "@/config/config"
+import { FSUtil } from "@opencode-ai/core/fs-util"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
@@ -107,6 +111,67 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       return yield* format.status()
     })
 
+    const getWorkflow = Effect.fn("InstanceHttpApi.workflow")(function* () {
+      const config = yield* Config.Service
+      const fs = yield* FSUtil.Service
+      const dirs = yield* config.directories().pipe(Effect.catch(() => Effect.succeed([] as string[])))
+      const workflows: Workflow.Info[] = []
+
+      for (const configDir of dirs) {
+        const root = path.join(configDir, "workflows")
+        const exists = yield* fs.isDir(root).pipe(Effect.catch(() => Effect.succeed(false)))
+        if (!exists) continue
+
+        const files = yield* fs
+          .glob("workflows/**/*.md", { cwd: configDir, absolute: true, include: "file", symlink: true })
+          .pipe(Effect.catch(() => Effect.succeed([] as string[])))
+
+        for (const filepath of files.toSorted()) {
+          const content = yield* fs.readFileStringSafe(filepath).pipe(
+            Effect.catch(() => Effect.succeed(undefined)),
+          )
+          if (!content) continue
+          const info = Workflow.parseWorkflow(root, filepath, content)
+          if (info) workflows.push(info)
+        }
+      }
+
+      workflows.sort((a, b) => {
+        if (a.category !== b.category) return a.category.localeCompare(b.category)
+        return a.name.localeCompare(b.name)
+      })
+
+      return workflows
+    })
+
+    const getWorkflowContent = Effect.fn("InstanceHttpApi.workflowContent")(function* (ctx: {
+      query: { path: string }
+    }) {
+      const config = yield* Config.Service
+      const fs = yield* FSUtil.Service
+      const dirs = yield* config.directories().pipe(Effect.catch(() => Effect.succeed([] as string[])))
+
+      for (const configDir of dirs) {
+        const root = path.join(configDir, "workflows")
+        const exists = yield* fs.isDir(root).pipe(Effect.catch(() => Effect.succeed(false)))
+        if (!exists) continue
+
+        const target = path.resolve(root, ctx.query.path + ".md")
+        if (!Workflow.isSubPath(root, target)) continue
+
+        const content = yield* fs.readFileStringSafe(target).pipe(Effect.catch(() => Effect.succeed(undefined)))
+        if (!content) continue
+
+        const detail = Workflow.parseWorkflowDetail(root, target, content)
+        if (detail) return detail
+      }
+
+      return yield* new ApiNotFoundError({
+        name: "NotFoundError",
+        data: { message: `Workflow "${ctx.query.path}" not found` },
+      })
+    })
+
     return handlers
       .handle("dispose", dispose)
       .handle("path", getPath)
@@ -121,5 +186,7 @@ export const instanceHandlers = HttpApiBuilder.group(InstanceHttpApi, "instance"
       .handle("skillDelete", removeSkill)
       .handle("lsp", getLsp)
       .handle("formatter", getFormatter)
+      .handle("workflow", getWorkflow)
+      .handle("workflowContent", getWorkflowContent)
   }),
 )
