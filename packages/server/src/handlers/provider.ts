@@ -150,35 +150,23 @@ export const ProviderHandler = HttpApiBuilder.group(Api, "server.provider", (han
             },
           )
         }).pipe(
-          Effect.catchCause((cause: any) =>
+          Effect.catchCause((cause) =>
             Effect.gen(function* () {
               const ref = `err_${crypto.randomUUID().slice(0, 8)}`
+              const fail = cause.reasons.find(Cause.isFailReason)
+              const die = cause.reasons.find(Cause.isDieReason)
 
-              if (cause._tag === "Fail") {
-                const error = cause.error
-                const body: Record<string, unknown> = {
-                  _tag: error instanceof ProviderNotFoundError ? "ProviderNotFoundError" : "ServiceUnavailableError",
-                  message: error?.message ?? "Unknown",
-                }
+              if (fail) {
+                const error = fail.error
+                const status = error instanceof ProviderNotFoundError ? 404 : 503
+                const tag = error instanceof ProviderNotFoundError ? "ProviderNotFoundError" : "ServiceUnavailableError"
+                const body: Record<string, unknown> = { _tag: tag, message: error?.message ?? "Unknown" }
                 if (error instanceof Error && error.stack) body.stack = error.stack
-                yield* Effect.logError("provider proxy fail", { ref, tag: body._tag, message: body.message })
-                return HttpServerResponse.text(JSON.stringify(body), {
-                  status: error instanceof ProviderNotFoundError ? 404 : 503,
-                  headers: { "content-type": "application/json" },
-                })
+                yield* Effect.logError("provider proxy fail", { ref, tag, message: body.message })
+                return HttpServerResponse.text(JSON.stringify(body), { status, headers: { "content-type": "application/json" } })
               }
 
-              yield* Effect.logError("provider proxy defect raw", {
-                ref,
-                causeTag: cause._tag,
-                hasDefect: "defect" in cause,
-                hasError: "error" in cause,
-                defectType: typeof cause.defect,
-                defectIsError: cause.defect instanceof Error,
-                defectConstructor: cause.defect?.constructor?.name,
-                defectMessage: cause.defect?.message ?? "N/A",
-              })
-              const defect: unknown = cause.defect ?? cause.error
+              const defect = die?.defect
               const message = typeof defect === "object" && defect !== null
                 ? (defect as any).message ?? String(defect)
                 : typeof defect === "string"
