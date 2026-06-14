@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { DateTime, Effect, Layer, Option, Schema } from "effect"
+import { NodeHttpServer, NodeServices } from "@effect/platform-node"
+import { HttpRouter, HttpServer } from "effect/unstable/http"
+import { HttpApi, HttpApiBuilder } from "effect/unstable/httpapi"
+import { layerWebSocketConstructorGlobal } from "effect/unstable/socket/Socket"
 import { Catalog } from "@opencode-ai/core/catalog"
 import { Credential } from "@opencode-ai/core/credential"
 import { EventV2 } from "@opencode-ai/core/event"
@@ -10,11 +14,13 @@ import { PluginBoot } from "@opencode-ai/core/plugin/boot"
 import { Policy } from "@opencode-ai/core/policy"
 import { ProviderV2 } from "@opencode-ai/core/provider"
 import { AbsolutePath } from "@opencode-ai/core/schema"
+import { LLMClient, RequestExecutor, WebSocketExecutor } from "@opencode-ai/llm/route"
 import { LocationMiddleware } from "../../../server/src/groups/location"
-import { ProxyPayload } from "../../../server/src/groups/provider"
+import { ProviderGroup, ProxyPayload } from "../../../server/src/groups/provider"
+import { handleProviderProxy } from "../../../server/src/handlers/provider"
 import { TestLLMServer } from "../lib/llm-server"
 import { testEffect } from "../lib/effect"
-import { httpApiLayer, request } from "./httpapi-layer"
+import { request } from "./httpapi-layer"
 
 describe("provider proxy schema validation", () => {
   test("accepts valid minimal payload", () => {
@@ -129,14 +135,37 @@ const pluginBootMock = Layer.succeed(
   PluginBoot.Service.of({ wait: () => Effect.void }),
 )
 
-const it = testEffect(
-  Layer.mergeAll(
-    httpApiLayer,
-    TestLLMServer.layer,
-    catalogDeps,
-    pluginBootMock,
-  ),
+const ProxyApi = HttpApi.make("test-proxy").add(ProviderGroup)
+
+const testProxyHandler = HttpApiBuilder.group(ProxyApi, "server.provider", (handlers) =>
+  Effect.gen(function* () {
+    return handlers.handleRaw("provider.proxy", (ctx) => handleProviderProxy(ctx.request))
+  }),
 )
+
+const testApiLayer = HttpApiBuilder.layer(ProxyApi).pipe(
+  Layer.provideMerge(testProxyHandler),
+  Layer.provide(Layer.succeed(LocationMiddleware, LocationMiddleware.of((effect) => effect))),
+)
+
+const testServedRoutes = HttpRouter.serve(testApiLayer, {
+  disableListenLog: true,
+  disableLogger: true,
+})
+
+const testHttpLayer = testServedRoutes.pipe(
+  Layer.provide(layerWebSocketConstructorGlobal),
+  Layer.provideMerge(NodeHttpServer.layerTest),
+  Layer.provideMerge(NodeServices.layer),
+  Layer.provideMerge(TestLLMServer.layer),
+  Layer.provideMerge(catalogDeps),
+  Layer.provideMerge(pluginBootMock),
+  Layer.provideMerge(LLMClient.layer.pipe(
+    Layer.provide(Layer.mergeAll(RequestExecutor.defaultLayer, WebSocketExecutor.layer)),
+  )),
+)
+
+const it = testEffect(testHttpLayer)
 
 function setEnvScoped(key: string, value: string) {
   return Effect.acquireRelease(
@@ -200,8 +229,8 @@ describe("provider proxy integration", () => {
 
       expect(response.status).toBe(200)
       const body = yield* response.text
-      expect(body).toContain("event: message")
-      expect(body).toContain('"Hello from test LLM"')
+      expect(body).toContain("text-delta")
+      expect(body).toContain("Hello from test LLM")
     }),
     30000,
   )
