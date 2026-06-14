@@ -390,37 +390,6 @@ export type TextPart = {
   }
 }
 
-export type SubtaskPart = {
-  id: string
-  sessionID: string
-  messageID: string
-  type: "subtask"
-  prompt: string
-  description: string
-  agent: string
-  model?: {
-    providerID: string
-    modelID: string
-  }
-  command?: string
-  files?: FilePart[]
-}
-
-export type ReasoningPart = {
-  id: string
-  sessionID: string
-  messageID: string
-  type: "reasoning"
-  text: string
-  metadata?: {
-    [key: string]: unknown
-  }
-  time: {
-    start: number
-    end?: number
-  }
-}
-
 export type FilePartSourceText = {
   value: string
   start: number
@@ -471,6 +440,37 @@ export type FilePart = {
   filename?: string
   url: string
   source?: FilePartSource
+}
+
+export type SubtaskPart = {
+  id: string
+  sessionID: string
+  messageID: string
+  type: "subtask"
+  prompt: string
+  description: string
+  agent: string
+  model?: {
+    providerID: string
+    modelID: string
+  }
+  command?: string
+  files?: Array<FilePart>
+}
+
+export type ReasoningPart = {
+  id: string
+  sessionID: string
+  messageID: string
+  type: "reasoning"
+  text: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  time: {
+    start: number
+    end?: number
+  }
 }
 
 export type ToolStatePending = {
@@ -1902,6 +1902,15 @@ export type AttachmentConfig = {
   image?: ImageAttachmentConfig
 }
 
+export type ImageAnalysisModel = {
+  provider: string
+  id: string
+}
+
+export type ImageAnalysisConfig = {
+  model: ImageAnalysisModel
+}
+
 export type Config = {
   $schema?: string
   shell?: string
@@ -1922,9 +1931,6 @@ export type Config = {
     urls?: Array<string>
   }
   references?: {
-    [key: string]: string | ConfigV2ReferenceGit | ConfigV2ReferenceLocal
-  }
-  reference?: {
     [key: string]: string | ConfigV2ReferenceGit | ConfigV2ReferenceLocal
   }
   watcher?: {
@@ -2022,6 +2028,7 @@ export type Config = {
     [key: string]: boolean
   }
   attachment?: AttachmentConfig
+  image_analysis?: ImageAnalysisConfig
   enterprise?: {
     url?: string
   }
@@ -2142,6 +2149,18 @@ export type Provider = {
   models: {
     [key: string]: Model
   }
+}
+
+export type ClientData = {
+  [key: string]: string
+}
+
+export type ClientDataPayload = {
+  [key: string]: string
+}
+
+export type ClientDataResponse = {
+  [key: string]: string
 }
 
 export type ConsoleState = {
@@ -2383,6 +2402,18 @@ export type Agent = {
   steps?: number
 }
 
+export type NotFoundError = {
+  name: "NotFoundError"
+  data: {
+    message: string
+  }
+}
+
+export type ForbiddenError = {
+  _tag: "ForbiddenError"
+  message: string
+}
+
 export type LspStatus = {
   id: string
   name: string
@@ -2435,6 +2466,27 @@ export type McpServerNotFoundError = {
   message: string
 }
 
+export type PermissionRequest = {
+  id: string
+  sessionID: string
+  permission: string
+  patterns: Array<string>
+  metadata: {
+    [key: string]: unknown
+  }
+  always: Array<string>
+  tool?: {
+    messageID: string
+    callID: string
+  }
+}
+
+export type PermissionNotFoundError = {
+  _tag: "PermissionNotFoundError"
+  requestID: string
+  message: string
+}
+
 export type Project = {
   id: string
   worktree: string
@@ -2462,54 +2514,6 @@ export type Project = {
 export type ProjectNotFoundError = {
   _tag: "ProjectNotFoundError"
   projectID: string
-  message: string
-}
-
-export type PtyNotFoundError = {
-  _tag: "PtyNotFoundError"
-  ptyID: string
-  message: string
-}
-
-export type PtyForbiddenError = {
-  _tag: "PtyForbiddenError"
-  message: string
-}
-
-export type QuestionRequest = {
-  id: string
-  sessionID: string
-  /**
-   * Questions to ask
-   */
-  questions: Array<QuestionInfo>
-  tool?: QuestionTool
-}
-
-export type QuestionNotFoundError = {
-  _tag: "QuestionNotFoundError"
-  requestID: string
-  message: string
-}
-
-export type PermissionRequest = {
-  id: string
-  sessionID: string
-  permission: string
-  patterns: Array<string>
-  metadata: {
-    [key: string]: unknown
-  }
-  always: Array<string>
-  tool?: {
-    messageID: string
-    callID: string
-  }
-}
-
-export type PermissionNotFoundError = {
-  _tag: "PermissionNotFoundError"
-  requestID: string
   message: string
 }
 
@@ -2567,11 +2571,31 @@ export type ProviderAuthError1 = {
   }
 }
 
-export type NotFoundError = {
-  name: "NotFoundError"
-  data: {
-    message: string
-  }
+export type PtyNotFoundError = {
+  _tag: "PtyNotFoundError"
+  ptyID: string
+  message: string
+}
+
+export type PtyForbiddenError = {
+  _tag: "PtyForbiddenError"
+  message: string
+}
+
+export type QuestionRequest = {
+  id: string
+  sessionID: string
+  /**
+   * Questions to ask
+   */
+  questions: Array<QuestionInfo>
+  tool?: QuestionTool
+}
+
+export type QuestionNotFoundError = {
+  _tag: "QuestionNotFoundError"
+  requestID: string
+  message: string
 }
 
 export type TextPartInput = {
@@ -2620,7 +2644,7 @@ export type SubtaskPartInput = {
     modelID: string
   }
   command?: string
-  files?: FilePartInput[]
+  files?: Array<FilePartInput>
 }
 
 export type SessionBusyError = {
@@ -2759,6 +2783,25 @@ export type ProviderNotFoundError = {
   _tag: "ProviderNotFoundError"
   providerID: string
   message: string
+}
+
+export type ProviderProxyPayload = {
+  providerID: string
+  modelID: string
+  system?: string
+  messages: Array<unknown>
+  tools?: Array<unknown>
+  toolChoice?: string
+  temperature?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  maxTokens?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  topP?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  topK?: number | "NaN" | "Infinity" | "-Infinity" | "Infinity" | "-Infinity" | "NaN"
+  providerOptions?: {
+    [key: string]: unknown
+  }
+  headers?: {
+    [key: string]: string
+  }
 }
 
 export type ProjectCopyError = {
@@ -3697,6 +3740,14 @@ export type ConfigV2ExperimentalPolicy = {
   action: "provider.use"
   effect: PolicyEffect
   resource: string
+}
+
+export type WorkflowDetail = {
+  path: string
+  name: string
+  category: string
+  description?: string
+  content: string
 }
 
 export type ProjectDirectories = Array<{
@@ -5657,6 +5708,88 @@ export type ConfigProvidersResponses = {
 
 export type ConfigProvidersResponse = ConfigProvidersResponses[keyof ConfigProvidersResponses]
 
+export type ConfigGetClientDataData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+    key?: string
+  }
+  url: "/config/client_data"
+}
+
+export type ConfigGetClientDataErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ConfigGetClientDataError = ConfigGetClientDataErrors[keyof ConfigGetClientDataErrors]
+
+export type ConfigGetClientDataResponses = {
+  /**
+   * Client data dictionary
+   */
+  200: ClientData
+}
+
+export type ConfigGetClientDataResponse = ConfigGetClientDataResponses[keyof ConfigGetClientDataResponses]
+
+export type ConfigUpdateClientDataData = {
+  body?: ClientDataPayload
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/config/client_data"
+}
+
+export type ConfigUpdateClientDataErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+}
+
+export type ConfigUpdateClientDataError = ConfigUpdateClientDataErrors[keyof ConfigUpdateClientDataErrors]
+
+export type ConfigUpdateClientDataResponses = {
+  /**
+   * Client data dictionary
+   */
+  200: ClientDataResponse
+}
+
+export type ConfigUpdateClientDataResponse = ConfigUpdateClientDataResponses[keyof ConfigUpdateClientDataResponses]
+
+export type QueryImageQueryData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/query-image"
+}
+
+export type QueryImageQueryErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+}
+
+export type QueryImageQueryError = QueryImageQueryErrors[keyof QueryImageQueryErrors]
+
+export type QueryImageQueryResponses = {
+  /**
+   * LLM event SSE stream
+   */
+  200: string
+}
+
+export type QueryImageQueryResponse = QueryImageQueryResponses[keyof QueryImageQueryResponses]
+
 export type ExperimentalConsoleGetData = {
   body?: never
   path?: never
@@ -6519,22 +6652,24 @@ export type AppSkillDeleteData = {
 
 export type AppSkillDeleteErrors = {
   /**
-   * Not found
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * ForbiddenError
+   */
+  403: ForbiddenError
+  /**
+   * NotFoundError
    */
   404: NotFoundError
-  /**
-   * Forbidden
-   */
-  403: {
-    message: string
-  }
 }
 
 export type AppSkillDeleteError = AppSkillDeleteErrors[keyof AppSkillDeleteErrors]
 
 export type AppSkillDeleteResponses = {
   /**
-   * Skill deleted successfully
+   * Skill deleted
    */
   200: {
     success: boolean
@@ -6542,74 +6677,6 @@ export type AppSkillDeleteResponses = {
 }
 
 export type AppSkillDeleteResponse = AppSkillDeleteResponses[keyof AppSkillDeleteResponses]
-
-export type AppWorkflowsData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/workflow"
-}
-
-export type AppWorkflowsErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type AppWorkflowsError = AppWorkflowsErrors[keyof AppWorkflowsErrors]
-
-export type AppWorkflowsResponses = {
-  /**
-   * List of workflows
-   */
-  200: Array<{
-    path: string
-    name: string
-    category: string
-    description?: string
-  }>
-}
-
-export type AppWorkflowsResponse = AppWorkflowsResponses[keyof AppWorkflowsResponses]
-
-export type AppWorkflowContentData = {
-  body?: never
-  path?: never
-  query: {
-    path: string
-    directory?: string
-    workspace?: string
-  }
-  url: "/workflow/content"
-}
-
-export type AppWorkflowContentErrors = {
-  /**
-   * Not found
-   */
-  404: NotFoundError
-}
-
-export type AppWorkflowContentError = AppWorkflowContentErrors[keyof AppWorkflowContentErrors]
-
-export type AppWorkflowContentResponses = {
-  /**
-   * Workflow detail
-   */
-  200: {
-    path: string
-    name: string
-    category: string
-    description?: string
-    content: string
-  }
-}
-
-export type AppWorkflowContentResponse = AppWorkflowContentResponses[keyof AppWorkflowContentResponses]
 
 export type LspStatusData = {
   body?: never
@@ -6666,6 +6733,72 @@ export type FormatterStatusResponses = {
 }
 
 export type FormatterStatusResponse = FormatterStatusResponses[keyof FormatterStatusResponses]
+
+export type AppWorkflowsData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/workflow"
+}
+
+export type AppWorkflowsErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type AppWorkflowsError = AppWorkflowsErrors[keyof AppWorkflowsErrors]
+
+export type AppWorkflowsResponses = {
+  /**
+   * List of workflows
+   */
+  200: Array<{
+    path: string
+    name: string
+    category: string
+    description?: string
+  }>
+}
+
+export type AppWorkflowsResponse = AppWorkflowsResponses[keyof AppWorkflowsResponses]
+
+export type AppWorkflowContentData = {
+  body?: never
+  path?: never
+  query: {
+    directory?: string
+    workspace?: string
+    path: string
+  }
+  url: "/workflow/content"
+}
+
+export type AppWorkflowContentErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * NotFoundError
+   */
+  404: NotFoundError
+}
+
+export type AppWorkflowContentError = AppWorkflowContentErrors[keyof AppWorkflowContentErrors]
+
+export type AppWorkflowContentResponses = {
+  /**
+   * Workflow detail
+   */
+  200: WorkflowDetail
+}
+
+export type AppWorkflowContentResponse = AppWorkflowContentResponses[keyof AppWorkflowContentResponses]
 
 export type McpStatusData = {
   body?: never
@@ -6941,6 +7074,103 @@ export type McpDisconnectResponses = {
 
 export type McpDisconnectResponse = McpDisconnectResponses[keyof McpDisconnectResponses]
 
+export type PermissionListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/permission"
+}
+
+export type PermissionListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type PermissionListError = PermissionListErrors[keyof PermissionListErrors]
+
+export type PermissionListResponses = {
+  /**
+   * List of pending permissions
+   */
+  200: Array<PermissionRequest>
+}
+
+export type PermissionListResponse = PermissionListResponses[keyof PermissionListResponses]
+
+export type PermissionReplyData = {
+  body?: {
+    reply: "once" | "always" | "reject"
+    message?: string
+  }
+  path: {
+    requestID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/permission/{requestID}/reply"
+}
+
+export type PermissionReplyErrors = {
+  /**
+   * BadRequest | InvalidRequestError
+   */
+  400: EffectHttpApiErrorBadRequest | InvalidRequestError
+  /**
+   * PermissionNotFoundError
+   */
+  404: PermissionNotFoundError
+}
+
+export type PermissionReplyError = PermissionReplyErrors[keyof PermissionReplyErrors]
+
+export type PermissionReplyResponses = {
+  /**
+   * Permission processed successfully
+   */
+  200: boolean
+}
+
+export type PermissionReplyResponse = PermissionReplyResponses[keyof PermissionReplyResponses]
+
+export type ProjectDeleteData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/project"
+}
+
+export type ProjectDeleteErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+  /**
+   * ProjectNotFoundError
+   */
+  404: ProjectNotFoundError
+}
+
+export type ProjectDeleteError = ProjectDeleteErrors[keyof ProjectDeleteErrors]
+
+export type ProjectDeleteResponses = {
+  /**
+   * Successfully deleted project
+   */
+  200: boolean
+}
+
+export type ProjectDeleteResponse = ProjectDeleteResponses[keyof ProjectDeleteResponses]
+
 export type ProjectListData = {
   body?: never
   path?: never
@@ -7024,34 +7254,6 @@ export type ProjectInitGitResponses = {
 }
 
 export type ProjectInitGitResponse = ProjectInitGitResponses[keyof ProjectInitGitResponses]
-
-export type ProjectRemoveData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/project"
-}
-
-export type ProjectRemoveErrors = {
-  /**
-   * ProjectNotFoundError
-   */
-  404: ProjectNotFoundError
-}
-
-export type ProjectRemoveError = ProjectRemoveErrors[keyof ProjectRemoveErrors]
-
-export type ProjectRemoveResponses = {
-  /**
-   * Successfully deleted project
-   */
-  200: boolean
-}
-
-export type ProjectRemoveResponse = ProjectRemoveResponses[keyof ProjectRemoveResponses]
 
 export type ProjectUpdateData = {
   body?: {
@@ -7165,6 +7367,144 @@ export type ExperimentalProjectCopyGenerateNameResponses = {
 
 export type ExperimentalProjectCopyGenerateNameResponse =
   ExperimentalProjectCopyGenerateNameResponses[keyof ExperimentalProjectCopyGenerateNameResponses]
+
+export type ProviderListData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/provider"
+}
+
+export type ProviderListErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProviderListError = ProviderListErrors[keyof ProviderListErrors]
+
+export type ProviderListResponses = {
+  /**
+   * List of providers
+   */
+  200: {
+    all: Array<Provider>
+    default: {
+      [key: string]: string
+    }
+    connected: Array<string>
+  }
+}
+
+export type ProviderListResponse = ProviderListResponses[keyof ProviderListResponses]
+
+export type ProviderAuthData = {
+  body?: never
+  path?: never
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/provider/auth"
+}
+
+export type ProviderAuthErrors = {
+  /**
+   * Bad request
+   */
+  400: BadRequestError
+}
+
+export type ProviderAuthError2 = ProviderAuthErrors[keyof ProviderAuthErrors]
+
+export type ProviderAuthResponses = {
+  /**
+   * Provider auth methods
+   */
+  200: {
+    [key: string]: Array<ProviderAuthMethod>
+  }
+}
+
+export type ProviderAuthResponse = ProviderAuthResponses[keyof ProviderAuthResponses]
+
+export type ProviderOauthAuthorizeData = {
+  body?: {
+    /**
+     * Auth method index
+     */
+    method: number
+    inputs?: {
+      [key: string]: string
+    }
+  }
+  path: {
+    providerID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/provider/{providerID}/oauth/authorize"
+}
+
+export type ProviderOauthAuthorizeErrors = {
+  /**
+   * ProviderAuthError | InvalidRequestError
+   */
+  400: ProviderAuthError1 | InvalidRequestError
+}
+
+export type ProviderOauthAuthorizeError = ProviderOauthAuthorizeErrors[keyof ProviderOauthAuthorizeErrors]
+
+export type ProviderOauthAuthorizeResponses = {
+  /**
+   * Authorization URL and method
+   */
+  200: ProviderAuthAuthorization
+}
+
+export type ProviderOauthAuthorizeResponse = ProviderOauthAuthorizeResponses[keyof ProviderOauthAuthorizeResponses]
+
+export type ProviderOauthCallbackData = {
+  body?: {
+    /**
+     * Auth method index
+     */
+    method: number
+    code?: string
+  }
+  path: {
+    providerID: string
+  }
+  query?: {
+    directory?: string
+    workspace?: string
+  }
+  url: "/provider/{providerID}/oauth/callback"
+}
+
+export type ProviderOauthCallbackErrors = {
+  /**
+   * ProviderAuthError | InvalidRequestError
+   */
+  400: ProviderAuthError1 | InvalidRequestError
+}
+
+export type ProviderOauthCallbackError = ProviderOauthCallbackErrors[keyof ProviderOauthCallbackErrors]
+
+export type ProviderOauthCallbackResponses = {
+  /**
+   * OAuth callback processed successfully
+   */
+  200: boolean
+}
+
+export type ProviderOauthCallbackResponse = ProviderOauthCallbackResponses[keyof ProviderOauthCallbackResponses]
 
 export type PtyShellsData = {
   body?: never
@@ -7511,209 +7851,6 @@ export type QuestionRejectResponses = {
 }
 
 export type QuestionRejectResponse = QuestionRejectResponses[keyof QuestionRejectResponses]
-
-export type PermissionListData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/permission"
-}
-
-export type PermissionListErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type PermissionListError = PermissionListErrors[keyof PermissionListErrors]
-
-export type PermissionListResponses = {
-  /**
-   * List of pending permissions
-   */
-  200: Array<PermissionRequest>
-}
-
-export type PermissionListResponse = PermissionListResponses[keyof PermissionListResponses]
-
-export type PermissionReplyData = {
-  body?: {
-    reply: "once" | "always" | "reject"
-    message?: string
-  }
-  path: {
-    requestID: string
-  }
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/permission/{requestID}/reply"
-}
-
-export type PermissionReplyErrors = {
-  /**
-   * BadRequest | InvalidRequestError
-   */
-  400: EffectHttpApiErrorBadRequest | InvalidRequestError
-  /**
-   * PermissionNotFoundError
-   */
-  404: PermissionNotFoundError
-}
-
-export type PermissionReplyError = PermissionReplyErrors[keyof PermissionReplyErrors]
-
-export type PermissionReplyResponses = {
-  /**
-   * Permission processed successfully
-   */
-  200: boolean
-}
-
-export type PermissionReplyResponse = PermissionReplyResponses[keyof PermissionReplyResponses]
-
-export type ProviderListData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/provider"
-}
-
-export type ProviderListErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type ProviderListError = ProviderListErrors[keyof ProviderListErrors]
-
-export type ProviderListResponses = {
-  /**
-   * List of providers
-   */
-  200: {
-    all: Array<Provider>
-    default: {
-      [key: string]: string
-    }
-    connected: Array<string>
-  }
-}
-
-export type ProviderListResponse = ProviderListResponses[keyof ProviderListResponses]
-
-export type ProviderAuthData = {
-  body?: never
-  path?: never
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/provider/auth"
-}
-
-export type ProviderAuthErrors = {
-  /**
-   * Bad request
-   */
-  400: BadRequestError
-}
-
-export type ProviderAuthError2 = ProviderAuthErrors[keyof ProviderAuthErrors]
-
-export type ProviderAuthResponses = {
-  /**
-   * Provider auth methods
-   */
-  200: {
-    [key: string]: Array<ProviderAuthMethod>
-  }
-}
-
-export type ProviderAuthResponse = ProviderAuthResponses[keyof ProviderAuthResponses]
-
-export type ProviderOauthAuthorizeData = {
-  body?: {
-    /**
-     * Auth method index
-     */
-    method: number
-    inputs?: {
-      [key: string]: string
-    }
-  }
-  path: {
-    providerID: string
-  }
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/provider/{providerID}/oauth/authorize"
-}
-
-export type ProviderOauthAuthorizeErrors = {
-  /**
-   * ProviderAuthError | InvalidRequestError
-   */
-  400: ProviderAuthError1 | InvalidRequestError
-}
-
-export type ProviderOauthAuthorizeError = ProviderOauthAuthorizeErrors[keyof ProviderOauthAuthorizeErrors]
-
-export type ProviderOauthAuthorizeResponses = {
-  /**
-   * Authorization URL and method
-   */
-  200: ProviderAuthAuthorization
-}
-
-export type ProviderOauthAuthorizeResponse = ProviderOauthAuthorizeResponses[keyof ProviderOauthAuthorizeResponses]
-
-export type ProviderOauthCallbackData = {
-  body?: {
-    /**
-     * Auth method index
-     */
-    method: number
-    code?: string
-  }
-  path: {
-    providerID: string
-  }
-  query?: {
-    directory?: string
-    workspace?: string
-  }
-  url: "/provider/{providerID}/oauth/callback"
-}
-
-export type ProviderOauthCallbackErrors = {
-  /**
-   * ProviderAuthError | InvalidRequestError
-   */
-  400: ProviderAuthError1 | InvalidRequestError
-}
-
-export type ProviderOauthCallbackError = ProviderOauthCallbackErrors[keyof ProviderOauthCallbackErrors]
-
-export type ProviderOauthCallbackResponses = {
-  /**
-   * OAuth callback processed successfully
-   */
-  200: boolean
-}
-
-export type ProviderOauthCallbackResponse = ProviderOauthCallbackResponses[keyof ProviderOauthCallbackResponses]
 
 export type SessionListData = {
   body?: never
@@ -10068,6 +10205,43 @@ export type V2ProviderGetResponses = {
 }
 
 export type V2ProviderGetResponse = V2ProviderGetResponses[keyof V2ProviderGetResponses]
+
+export type V2ProviderProxyData = {
+  body: ProviderProxyPayload
+  path?: never
+  query?: never
+  url: "/api/provider/proxy"
+}
+
+export type V2ProviderProxyErrors = {
+  /**
+   * InvalidRequestError
+   */
+  400: InvalidRequestError
+  /**
+   * UnauthorizedError
+   */
+  401: UnauthorizedError
+  /**
+   * ProviderNotFoundError
+   */
+  404: ProviderNotFoundError
+  /**
+   * ServiceUnavailableError
+   */
+  503: ServiceUnavailableError
+}
+
+export type V2ProviderProxyError = V2ProviderProxyErrors[keyof V2ProviderProxyErrors]
+
+export type V2ProviderProxyResponses = {
+  /**
+   * Success
+   */
+  200: string
+}
+
+export type V2ProviderProxyResponse = V2ProviderProxyResponses[keyof V2ProviderProxyResponses]
 
 export type V2IntegrationListData = {
   body?: never
