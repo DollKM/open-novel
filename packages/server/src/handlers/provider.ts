@@ -168,6 +168,16 @@ export const ProviderHandler = HttpApiBuilder.group(Api, "server.provider", (han
                 })
               }
 
+              yield* Effect.logError("provider proxy defect raw", {
+                ref,
+                causeTag: cause._tag,
+                hasDefect: "defect" in cause,
+                hasError: "error" in cause,
+                defectType: typeof cause.defect,
+                defectIsError: cause.defect instanceof Error,
+                defectConstructor: cause.defect?.constructor?.name,
+                defectMessage: cause.defect?.message ?? "N/A",
+              })
               const defect: unknown = cause.defect ?? cause.error
               const message = typeof defect === "object" && defect !== null
                 ? (defect as any).message ?? String(defect)
