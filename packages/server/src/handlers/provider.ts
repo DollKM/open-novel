@@ -7,7 +7,7 @@ import { Auth } from "@opencode-ai/llm/route"
 import * as AnthropicMessages from "@opencode-ai/llm/protocols/anthropic-messages"
 import * as OpenAICompatibleChat from "@opencode-ai/llm/protocols/openai-compatible-chat"
 import * as OpenAIResponses from "@opencode-ai/llm/protocols/openai-responses"
-import { Effect, Stream } from "effect"
+import { Cause, Effect, Stream } from "effect"
 import { HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import * as Sse from "effect/unstable/encoding/Sse"
@@ -151,15 +151,36 @@ export const ProviderHandler = HttpApiBuilder.group(Api, "server.provider", (han
           )
         }).pipe(
           Effect.catchCause((cause: any) =>
-            Effect.succeed(
-              HttpServerResponse.text(
-                JSON.stringify(cause._tag === "Fail" ? { _tag: cause.error instanceof ProviderNotFoundError ? "ProviderNotFoundError" : "ServiceUnavailableError", message: cause.error?.message ?? "Unknown" } : { _tag: "ServiceUnavailableError", message: "Internal error" }),
-                {
-                  status: cause._tag === "Fail" && cause.error instanceof ProviderNotFoundError ? 404 : 503,
+            Effect.gen(function* () {
+              const ref = `err_${crypto.randomUUID().slice(0, 8)}`
+
+              if (cause._tag === "Fail") {
+                const error = cause.error
+                const body: Record<string, unknown> = {
+                  _tag: error instanceof ProviderNotFoundError ? "ProviderNotFoundError" : "ServiceUnavailableError",
+                  message: error?.message ?? "Unknown",
+                }
+                if (error instanceof Error && error.stack) body.stack = error.stack
+                yield* Effect.logError("provider proxy fail", { ref, tag: body._tag, message: body.message })
+                return HttpServerResponse.text(JSON.stringify(body), {
+                  status: error instanceof ProviderNotFoundError ? 404 : 503,
                   headers: { "content-type": "application/json" },
-                },
-              ),
-            ),
+                })
+              }
+
+              const body: Record<string, unknown> = { _tag: "ServiceUnavailableError", message: "Internal error", ref }
+
+              const defect = cause.defect ?? cause.error
+              if (defect instanceof Error) {
+                body.message = defect.message || "Internal error"
+                if (defect.stack) body.stack = defect.stack
+              }
+              yield* Effect.logError("provider proxy defect", { ref, cause: Cause.pretty(cause) })
+              return HttpServerResponse.text(JSON.stringify(body), {
+                status: 503,
+                headers: { "content-type": "application/json" },
+              })
+            }),
           ),
         ),
       )
