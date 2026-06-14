@@ -56,7 +56,6 @@ export const ProviderGroup = HttpApiGroup.make("server.provider")
     HttpApiEndpoint.post("provider.proxy", "/api/provider/proxy", {
       payload: ProxyPayload,
       success: Schema.String.pipe(HttpApiSchema.asText({ contentType: "text/event-stream" })),
-      error: [ProviderNotFoundError, ServiceUnavailableError],
     }).annotateMerge(
       OpenApi.annotations({
         identifier: "v2.provider.proxy",

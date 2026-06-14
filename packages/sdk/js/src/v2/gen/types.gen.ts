@@ -10222,14 +10222,6 @@ export type V2ProviderProxyErrors = {
    * UnauthorizedError
    */
   401: UnauthorizedError
-  /**
-   * ProviderNotFoundError
-   */
-  404: ProviderNotFoundError
-  /**
-   * ServiceUnavailableError
-   */
-  503: ServiceUnavailableError
 }
 
 export type V2ProviderProxyError = V2ProviderProxyErrors[keyof V2ProviderProxyErrors]
