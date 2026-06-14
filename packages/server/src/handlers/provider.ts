@@ -168,13 +168,17 @@ export const ProviderHandler = HttpApiBuilder.group(Api, "server.provider", (han
                 })
               }
 
-              const body: Record<string, unknown> = { _tag: "ServiceUnavailableError", message: "Internal error", ref }
-
-              const defect = cause.defect ?? cause.error
-              if (defect instanceof Error) {
-                body.message = defect.message || "Internal error"
-                if (defect.stack) body.stack = defect.stack
-              }
+              const defect: unknown = cause.defect ?? cause.error
+              const message = typeof defect === "object" && defect !== null
+                ? (defect as any).message ?? String(defect)
+                : typeof defect === "string"
+                  ? defect
+                  : "Internal error"
+              const stack = typeof defect === "object" && defect !== null
+                ? (defect as any).stack
+                : undefined
+              const body: Record<string, unknown> = { _tag: "ServiceUnavailableError", message, ref }
+              if (stack) body.stack = stack
               yield* Effect.logError("provider proxy defect", { ref, cause: Cause.pretty(cause) })
               return HttpServerResponse.text(JSON.stringify(body), {
                 status: 503,
