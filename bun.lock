@@ -678,6 +678,7 @@
       "version": "1.17.6",
       "dependencies": {
         "@opencode-ai/core": "workspace:*",
+        "@opencode-ai/llm": "workspace:*",
         "drizzle-orm": "catalog:",
         "effect": "catalog:",
       },
