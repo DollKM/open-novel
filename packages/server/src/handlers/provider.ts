@@ -153,27 +153,27 @@ export const ProviderHandler = HttpApiBuilder.group(Api, "server.provider", (han
           Effect.catchCause((cause) =>
             Effect.gen(function* () {
               const ref = `err_${crypto.randomUUID().slice(0, 8)}`
-              const fail = cause.reasons.find(Cause.isFailReason)
-              const die = cause.reasons.find(Cause.isDieReason)
+              const squashd = Cause.squash(cause)
 
-              if (fail) {
-                const error = fail.error
-                const status = error instanceof ProviderNotFoundError ? 404 : 503
-                const tag = error instanceof ProviderNotFoundError ? "ProviderNotFoundError" : "ServiceUnavailableError"
-                const body: Record<string, unknown> = { _tag: tag, message: error?.message ?? "Unknown" }
-                if (error instanceof Error && error.stack) body.stack = error.stack
-                yield* Effect.logError("provider proxy fail", { ref, tag, message: body.message })
+              if (Cause.hasFails(cause) && squashd) {
+                const status = squashd instanceof ProviderNotFoundError ? 404 : 503
+                const tag = squashd instanceof ProviderNotFoundError ? "ProviderNotFoundError" : "ServiceUnavailableError"
+                const msg = typeof squashd === "object" && squashd !== null
+                  ? ((squashd as any).message ?? String(squashd))
+                  : String(squashd)
+                const body: Record<string, unknown> = { _tag: tag, message: msg }
+                if (typeof squashd === "object" && squashd !== null && (squashd as any).stack) body.stack = (squashd as any).stack
+                yield* Effect.logError("provider proxy fail", { ref, tag, message: msg })
                 return HttpServerResponse.text(JSON.stringify(body), { status, headers: { "content-type": "application/json" } })
               }
 
-              const defect = die?.defect
-              const message = typeof defect === "object" && defect !== null
-                ? (defect as any).message ?? String(defect)
-                : typeof defect === "string"
-                  ? defect
+              const message = typeof squashd === "object" && squashd !== null
+                ? ((squashd as any).message ?? String(squashd))
+                : typeof squashd === "string"
+                  ? squashd
                   : "Internal error"
-              const stack = typeof defect === "object" && defect !== null
-                ? (defect as any).stack
+              const stack = typeof squashd === "object" && squashd !== null
+                ? (squashd as any).stack
                 : undefined
               const body: Record<string, unknown> = { _tag: "ServiceUnavailableError", message, ref }
               if (stack) body.stack = stack
