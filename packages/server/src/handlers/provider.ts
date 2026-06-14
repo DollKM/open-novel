@@ -118,7 +118,7 @@ export function handleProviderProxy(
 
     let apiKey: string | undefined
     const enabled = provider.enabled
-    if (typeof enabled !== "boolean" && enabled.via === "env") {
+    if (enabled && typeof enabled !== "boolean" && enabled.via === "env") {
       apiKey = process.env[enabled.name]
     }
 
