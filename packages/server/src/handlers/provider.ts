@@ -116,17 +116,18 @@ export function handleProviderProxy(
       ),
     )
 
-    let apiKey: string | undefined
-    const enabled = provider.enabled
-    if (enabled && typeof enabled !== "boolean" && enabled.via === "env") {
-      apiKey = process.env[enabled.name]
-    }
-
     const modelInfo = yield* catalog.model.get(body.providerID as ProviderV2.ID, body.modelID as ModelV2.ID).pipe(
       Effect.catchTag("CatalogV2.ModelNotFound", () =>
         Effect.fail(new ServiceUnavailableError({ message: `Model ${body.modelID} not found for provider ${body.providerID}` })),
       ),
     )
+
+    let apiKey: string | undefined
+    if (typeof modelInfo.request?.body?.apiKey === "string") {
+      apiKey = modelInfo.request.body.apiKey
+    } else if (typeof provider.request?.body?.apiKey === "string") {
+      apiKey = provider.request.body.apiKey
+    }
 
     const model = yield* Effect.try({
       try: () => buildModel(provider, modelInfo, apiKey),
